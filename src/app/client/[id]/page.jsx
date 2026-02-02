@@ -201,6 +201,17 @@ const page = () => {
           <p className="text-sm text-muted-foreground">
             JoinUp with your friends.
           </p>
+          <Button
+            disabled={!selectedGame}
+            className={`rounded-full h-12 transition-all ${
+              selectedGame
+                ? "bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90"
+                : "bg-black/50 text-white/50 cursor-not-allowed"
+            }`}
+          >
+            <Play className="size-5" />
+            Start a Game
+          </Button>
         </div>
         {/* choose a game */}
         <hr />
@@ -278,17 +289,6 @@ const page = () => {
       </div>
 
       {/* play cta button */}
-      <Button
-        disabled={!selectedGame}
-        className={`absolute bottom-15 left-5 right-5 rounded-full h-12 transition-all ${
-          selectedGame
-            ? "bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90"
-            : "bg-black/50 text-white/50 cursor-not-allowed"
-        }`}
-      >
-        <Play className="size-5" />
-        Start a Game
-      </Button>
 
       {/* Menu Panel - Slides from Left */}
       <AnimatePresence>
