@@ -18,13 +18,28 @@ import {
   Zap,
   Lock,
   X,
+  Plus,
+  DoorOpen,
+  History,
+  Award,
+  BookOpen,
+  Settings,
+  UserCircle,
+  UserPen,
+  BarChart3,
+  UserPlus,
+  Bell,
+  LogOut,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 const page = () => {
   const [userName, setUserName] = useState("");
   const [selectedGame, setSelectedGame] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const handleGameClick = (game) => {
     if (game.id > 2) {
@@ -130,6 +145,7 @@ const page = () => {
     <div className="p-5 relative bg-[#ffaa0009] h-screen w-full">
       <nav className="flex w-full items-center justify-between mb-10">
         <Button
+          onClick={() => setShowMenu(true)}
           className={"rounded-full border-black/20 w-11 h-11"}
           variant="outline"
         >
@@ -147,7 +163,10 @@ const page = () => {
             Up
           </HyperText>
         </h1>
-        <Button className={"rounded-full w-11 h-11"}>
+        <Button
+          onClick={() => setShowProfile(true)}
+          className={"rounded-full w-11 h-11"}
+        >
           <User2 />
         </Button>
       </nav>
@@ -219,7 +238,7 @@ const page = () => {
       {/* play cta button */}
       <Button
         disabled={!selectedGame}
-        className={`absolute bottom-10 left-5 right-5 rounded-full h-12 transition-all ${
+        className={`absolute bottom-15 left-5 right-5 rounded-full h-12 transition-all ${
           selectedGame
             ? "bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90"
             : "bg-black/50 text-white/50 cursor-not-allowed"
@@ -228,8 +247,178 @@ const page = () => {
         <Play className="size-5" />
         Start a Game
       </Button>
+
+      {/* Menu Panel - Slides from Left */}
+      <AnimatePresence>
+        {showMenu && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMenu(false)}
+              className="fixed inset-0 bg-black/50 z-40"
+            />
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed left-0 top-0 h-full w-80 bg-white z-50 shadow-2xl p-6 overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-bold">Menu</h2>
+                <Button
+                  onClick={() => setShowMenu(false)}
+                  variant="ghost"
+                  className="rounded-full w-10 h-10 p-0"
+                >
+                  <X className="size-5" />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <MenuItem
+                  icon={Plus}
+                  label="Create Game Room"
+                  onClick={() => toast.info("Create room coming soon!")}
+                />
+                <MenuItem
+                  icon={DoorOpen}
+                  label="Join Room"
+                  onClick={() => toast.info("Join room coming soon!")}
+                />
+                <MenuItem
+                  icon={Users}
+                  label="Active Rooms"
+                  onClick={() => toast.info("Active rooms coming soon!")}
+                />
+                <MenuItem
+                  icon={History}
+                  label="Game History"
+                  onClick={() => toast.info("History coming soon!")}
+                />
+                <MenuItem
+                  icon={Award}
+                  label="Leaderboard"
+                  onClick={() => toast.info("Leaderboard coming soon!")}
+                />
+                <MenuItem
+                  icon={BookOpen}
+                  label="How to Play"
+                  onClick={() => toast.info("Tutorial coming soon!")}
+                />
+                <MenuItem
+                  icon={Settings}
+                  label="Settings"
+                  onClick={() => toast.info("Settings coming soon!")}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Panel - Slides from Right */}
+      <AnimatePresence>
+        {showProfile && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowProfile(false)}
+              className="fixed inset-0 bg-black/50 z-40"
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 h-full w-80 bg-white z-50 shadow-2xl p-6 overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-bold">Profile</h2>
+                <Button
+                  onClick={() => setShowProfile(false)}
+                  variant="ghost"
+                  className="rounded-full w-10 h-10 p-0"
+                >
+                  <X className="size-5" />
+                </Button>
+              </div>
+
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-20 h-20 rounded-full bg-[#fa5c00] flex items-center justify-center text-white text-2xl font-bold mb-3">
+                  {userName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()}
+                </div>
+                <h3 className="text-xl font-semibold">{userName}</h3>
+              </div>
+
+              <div className="space-y-2">
+                <MenuItem
+                  icon={UserCircle}
+                  label="View Profile"
+                  onClick={() => toast.info("Profile coming soon!")}
+                />
+                <MenuItem
+                  icon={UserPen}
+                  label="Edit Profile"
+                  onClick={() => toast.info("Edit profile coming soon!")}
+                />
+                <MenuItem
+                  icon={BarChart3}
+                  label="My Stats"
+                  onClick={() => toast.info("Stats coming soon!")}
+                />
+                <MenuItem
+                  icon={UserPlus}
+                  label="Friends"
+                  onClick={() => toast.info("Friends coming soon!")}
+                />
+                <MenuItem
+                  icon={Bell}
+                  label="Notifications"
+                  onClick={() => toast.info("Notifications coming soon!")}
+                />
+                <MenuItem
+                  icon={Settings}
+                  label="Account Settings"
+                  onClick={() => toast.info("Settings coming soon!")}
+                />
+                <div className="pt-4 border-t mt-4">
+                  <MenuItem
+                    icon={LogOut}
+                    label="Logout"
+                    onClick={() => {
+                      localStorage.removeItem("userDetails");
+                      window.location.href = "/auth";
+                    }}
+                    className="text-red-600 hover:bg-red-50"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
+
+// MenuItem Component
+const MenuItem = ({ icon: Icon, label, onClick, className = "" }) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors ${className}`}
+  >
+    <Icon className="size-5" />
+    <span className="font-medium">{label}</span>
+  </button>
+);
 
 export default page;
