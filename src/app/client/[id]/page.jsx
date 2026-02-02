@@ -34,8 +34,11 @@ import {
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter, useParams } from "next/navigation";
 
-const page = () => {
+const Page = () => {
+  const router = useRouter();
+  const params = useParams();
   const [userName, setUserName] = useState("");
   const [selectedGame, setSelectedGame] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -203,6 +206,11 @@ const page = () => {
           </p>
           <Button
             disabled={!selectedGame}
+            onClick={() => {
+              if (selectedGame) {
+                router.push(`/client/${params.id}/start?game=${selectedGame}`);
+              }
+            }}
             className={`rounded-full h-12 transition-all ${
               selectedGame
                 ? "bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90"
@@ -287,9 +295,6 @@ const page = () => {
           })}
         </div>
       </div>
-
-      {/* play cta button */}
-
       {/* Menu Panel - Slides from Left */}
       <AnimatePresence>
         {showMenu && (
@@ -463,4 +468,4 @@ const MenuItem = ({ icon: Icon, label, onClick, className = "" }) => (
   </button>
 );
 
-export default page;
+export default Page;

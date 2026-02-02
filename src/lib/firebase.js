@@ -30,3 +30,7 @@ if (typeof window !== "undefined") {
 // Auth export for use in other files
 import { getAuth } from "firebase/auth";
 export const auth = getAuth(app);
+
+// Firestore export for multiplayer game rooms
+import { getFirestore } from "firebase/firestore";
+export const db = getFirestore(app);
