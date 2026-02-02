@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { signIn, signInWithGoogle } from "@/lib/auth";
 import { Eye, EyeOff } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -21,6 +22,7 @@ export function LoginForm({ className, ...props }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   // Map Firebase error codes to user-friendly messages
   function getFriendlyError(error) {
@@ -44,8 +46,28 @@ export function LoginForm({ className, ...props }) {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(email, password);
-      // Optionally redirect or show success
+      const userCredential = await signIn(email, password);
+      const user = userCredential.user;
+
+      const userDetails = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || email.split("@")[0],
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+      };
+      localStorage.setItem("userDetails", JSON.stringify(userDetails));
+
+      toast.success(`Welcome back, ${userDetails.displayName}!`);
+
+      setTimeout(() => {
+        const displayName = userDetails.displayName || "";
+        const initials = displayName
+          .split(" ")
+          .map((name) => name.charAt(0).toUpperCase())
+          .join("");
+        router.push(`/client/${initials || "USER"}`);
+      }, 1000);
     } catch (err) {
       toast.error(getFriendlyError(err));
     } finally {
@@ -57,8 +79,28 @@ export function LoginForm({ className, ...props }) {
   const handleGoogle = async () => {
     setLoading(true);
     try {
-      await signInWithGoogle();
-      // Optionally redirect or show success
+      const userCredential = await signInWithGoogle();
+      const user = userCredential.user;
+
+      const userDetails = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+      };
+      localStorage.setItem("userDetails", JSON.stringify(userDetails));
+
+      toast.success(`Welcome back, ${user.displayName}!`);
+
+      setTimeout(() => {
+        const displayName = user.displayName || "";
+        const initials = displayName
+          .split(" ")
+          .map((name) => name.charAt(0).toUpperCase())
+          .join("");
+        router.push(`/client/${initials || "USER"}`);
+      }, 1000);
     } catch (err) {
       toast.error(getFriendlyError(err));
     } finally {
@@ -68,17 +110,14 @@ export function LoginForm({ className, ...props }) {
 
   return (
     <form
-      className={cn("flex flex-col gap-6", className)}
-      {...props}
       onSubmit={handleSubmit}
+      className={cn("space-y-6", className)}
+      {...props}
     >
-      <Toaster position="top-center" theme="dark" richColors />
       <FieldGroup>
-        {/* Header */}
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Login to your account</h1>
-          <p className="text-muted-foreground text-sm text-balance">
-            Enter your  email below and login
+        <div className="text-center mb-4">
+          <p className="text-sm text-muted-foreground">
+            Enter your email below and login and enjoy!
           </p>
         </div>
 
@@ -90,7 +129,7 @@ export function LoginForm({ className, ...props }) {
           <Input
             id="email"
             type="email"
-            placeholder="business@example.com"
+            placeholder="johndoe@example.com"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -147,7 +186,7 @@ export function LoginForm({ className, ...props }) {
           Or continue with
         </FieldSeparator>
 
-        {/* GitHub login */}
+        {/* Google login */}
         <Field>
           <Button
             variant="outline"
@@ -183,21 +222,9 @@ export function LoginForm({ className, ...props }) {
             </svg>
             Sign in with Google
           </Button>
-
-          {/* Sign up link */}
-          <FieldDescription className="text-center">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/onboarding?setup-your-business"
-              className="underline underline-offset-4"
-            >
-              Sign up
-            </Link>
-          </FieldDescription>
         </Field>
-
-        {/* Error message handled by toast (Sonner) */}
       </FieldGroup>
+      <Toaster position="top-center" theme="dark" richColors />
     </form>
   );
 }

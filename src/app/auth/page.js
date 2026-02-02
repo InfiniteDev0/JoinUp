@@ -65,7 +65,7 @@ const Auth = () => {
   ];
 
   return (
-    <div className="grid min-h-svh  items-center lg:grid-cols-2">
+    <div className="grid min-h-svh items-center lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex flex-col justify-center gap-2 md:justify-start">
           <Link href="/" className="flex items-center gap-2 font-medium">
@@ -84,58 +84,61 @@ const Auth = () => {
           </TextAnimate>
         </div>
       </div>
-      <AnimatePresence mode="wait">
+      <div className="relative flex flex-col items-center justify-center p-6">
+        <AnimatePresence mode="wait">
+          {!showLoginForm ? (
+            <motion.div
+              key="tooltip-section"
+              initial={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.3 }}
+              className="w-full flex flex-col items-center justify-center gap-10"
+            >
+              <div className="flex flex-col items-center justify-center gap-5 w-full">
+                <AnimatedTooltip items={people} />
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
         {!showLoginForm ? (
-          <motion.div
-            key="tooltip-section"
-            initial={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -100 }}
-            transition={{ duration: 0.3 }}
-            className="relative flex flex-col items-center justify-center overflow-hidden"
-          >
-            <div className="flex flex-col items-center justify-center mb-10 gap-5 w-full relative z-10">
-              <AnimatedTooltip items={people} />
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="login-form"
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 100 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="relative flex flex-col items-center justify-center overflow-hidden"
-          >
-            <LoginForm />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence mode="wait">
-        {!showLoginForm ? (
-          <motion.div
-            key="buttons"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-1 items-center justify-center"
-          >
-            <div className="w-full flex flex-col gap-3 px-5">
+          <div className="w-full flex flex-col gap-3 px-5 max-w-md mt-10">
+            <Button
+              className={"bg-[#fa5c00] hover:bg-[#fa5c00]/90 h-12 text-sm"}
+              onClick={() => router.push("/onboarding")}
+            >
+              Get Started
+            </Button>
+            <Button
+              className={"bg-foreground hover:bg-foreground/90 h-12 text-sm"}
+              onClick={() => setShowLoginForm(true)}
+            >
+              Already a member? JoinUp
+            </Button>
+          </div>
+        ) : null}
+
+        <AnimatePresence>
+          {showLoginForm && (
+            <motion.div
+              key="login-form"
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="w-full max-w-md flex flex-col gap-3"
+            >
+              <LoginForm />
               <Button
-                className={"bg-[#fa5c00] hover:bg-[bg-[#fa5c00]] h-12 text-md"}
+                className={"bg-[#fa5c00] hover:bg-[#fa5c00]/90 h-12 text-sm"}
                 onClick={() => router.push("/onboarding")}
               >
                 Get Started
               </Button>
-              <Button
-                className={"bg-foreground hover:bg-foreground h-12 text-md"}
-                onClick={() => setShowLoginForm(true)}
-              >
-                Already a member? JoinUp
-              </Button>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
