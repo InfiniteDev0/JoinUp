@@ -178,10 +178,10 @@ const page = () => {
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
-                className={`rounded-2xl overflow-hidden transition-all cursor-pointer relative h-40 border-2 ${
+                className={`rounded-md overflow-hidden transition-all cursor-pointer relative h-40 border-2 ${
                   selectedGame === game.id && !isLocked
                     ? "border-[#fa5c00]"
-                    : "border-[#2a2a2a]"
+                    : ""
                 }`}
               >
                 {isLocked && (
@@ -219,7 +219,7 @@ const page = () => {
       {/* play cta button */}
       <Button
         disabled={!selectedGame}
-        className={`absolute bottom-6 left-5 right-5 rounded-full h-12 transition-all ${
+        className={`absolute bottom-10 left-5 right-5 rounded-full h-12 transition-all ${
           selectedGame
             ? "bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90"
             : "bg-black/50 text-white/50 cursor-not-allowed"
