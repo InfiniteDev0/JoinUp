@@ -2,13 +2,22 @@
 
 import { Button } from "@/components/ui/button";
 import { HyperText } from "@/components/ui/hyper-text";
-import { ArrowLeft, Copy, Check, Users, Crown, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Check,
+  Users,
+  Crown,
+  Loader2,
+  UserPlus,
+} from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot, updateDoc, arrayUnion } from "firebase/firestore";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { api } from "@/lib/api";
 
 const LobbyPage = () => {
   const router = useRouter();
@@ -25,7 +34,15 @@ const LobbyPage = () => {
     // Get current user
     const userDetails = localStorage.getItem("userDetails");
     if (userDetails) {
-      setCurrentUser(JSON.parse(userDetails));
+      const user = JSON.parse(userDetails);
+      setCurrentUser(user);
+
+      // Update user's current room in backend
+      if (roomId) {
+        api
+          .updateCurrentRoom(user.uid, roomId)
+          .catch((err) => console.error("Failed to update current room:", err));
+      }
     }
 
     // Listen to room updates
@@ -34,6 +51,10 @@ const LobbyPage = () => {
         if (doc.exists()) {
           const data = doc.data();
           setRoomData({ id: doc.id, ...data });
+
+          // Store room ID and data for friend invites
+          localStorage.setItem("currentRoomId", roomId);
+          localStorage.setItem("currentRoomData", JSON.stringify(data));
 
           // Check if game should start
           if (data.status === "playing") {
@@ -46,7 +67,18 @@ const LobbyPage = () => {
         setLoading(false);
       });
 
-      return () => unsubscribe();
+      return () => {
+        unsubscribe();
+        // Clear room when leaving lobby
+        if (userDetails) {
+          const user = JSON.parse(userDetails);
+          api
+            .updateCurrentRoom(user.uid, null)
+            .catch((err) =>
+              console.error("Failed to clear current room:", err),
+            );
+        }
+      };
     }
   }, [roomId, params.id, router]);
 
@@ -90,8 +122,8 @@ const LobbyPage = () => {
       return;
     }
 
-    // Check if all players are ready
-    const allReady = roomData.players.every((p) => p.isReady);
+    // Check if all non-host players are ready
+    const allReady = roomData.players.every((p) => p.isHost || p.isReady);
     if (!allReady) {
       toast.error("All players must be ready");
       return;
@@ -120,7 +152,8 @@ const LobbyPage = () => {
   );
   const isHost = currentPlayerData?.isHost;
   const allPlayersReady =
-    roomData?.players.every((p) => p.isReady) && roomData?.players.length >= 2;
+    roomData?.players.every((p) => p.isHost || p.isReady) &&
+    roomData?.players.length >= 2;
 
   return (
     <div className="p-5 relative bg-[#ffaa0009] min-h-screen w-full">
@@ -177,6 +210,13 @@ const LobbyPage = () => {
           <p className="text-xs text-white/50 mt-2">
             Share this code with friends to join
           </p>
+          <Button
+            onClick={() => router.push(`/client/${params.id}/friends`)}
+            className="mt-3 w-full bg-[#fa5c00] text-white hover:bg-[#fa5c00]/90 gap-2"
+          >
+            <UserPlus className="size-4" />
+            Invite Friends
+          </Button>
         </div>
 
         {/* Game Info */}

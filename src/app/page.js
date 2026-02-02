@@ -15,7 +15,7 @@ export default function Home() {
     const timer = setTimeout(() => {
       // Start exit animation
       setIsExiting(true);
-
+      
       // Wait for exit animation to complete before redirecting
       setTimeout(() => {
         // Check localStorage for user details

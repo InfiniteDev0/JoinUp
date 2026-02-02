@@ -2,11 +2,22 @@
 
 import { Button } from "@/components/ui/button";
 import { HyperText } from "@/components/ui/hyper-text";
-import { Home, Trophy, Crown, Target, Users, Loader2 } from "lucide-react";
+import {
+  Home,
+  Trophy,
+  Crown,
+  Target,
+  Users,
+  Loader2,
+  Play,
+  X,
+} from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 
@@ -20,12 +31,14 @@ const ResultPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [winner, setWinner] = useState(null);
+  const [isHost, setIsHost] = useState(false);
 
   useEffect(() => {
     // Get current user
     const userDetails = localStorage.getItem("userDetails");
     if (userDetails) {
-      setCurrentUser(JSON.parse(userDetails));
+      const user = JSON.parse(userDetails);
+      setCurrentUser(user);
     }
 
     // Fetch final room data
@@ -35,6 +48,16 @@ const ResultPage = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setRoomData({ id: docSnap.id, ...data });
+
+          // Check if current user is host
+          const userDetails = localStorage.getItem("userDetails");
+          if (userDetails) {
+            const user = JSON.parse(userDetails);
+            const hostPlayer = data.players.find(
+              (p) => p.uid === user.uid && p.isHost,
+            );
+            setIsHost(!!hostPlayer);
+          }
 
           // Determine winner
           if (data.gameId === 1) {
@@ -52,21 +75,28 @@ const ResultPage = () => {
               }
             });
 
-            const mostVotedId = Object.keys(voteCounts).reduce((a, b) =>
-              voteCounts[a] > voteCounts[b] ? a : b,
-            );
+            const voteKeys = Object.keys(voteCounts);
+            if (voteKeys.length > 0) {
+              const mostVotedId = voteKeys.reduce((a, b) =>
+                voteCounts[a] > voteCounts[b] ? a : b,
+              );
 
-            const mostVotedPlayer = data.players.find(
-              (p) => p.uid === mostVotedId,
-            );
-            const actualImposter = data.players.find((p) => p.isImposter);
+              const mostVotedPlayer = data.players.find(
+                (p) => p.uid === mostVotedId,
+              );
+              const actualImposter = data.players.find((p) => p.isImposter);
 
-            // Winner is determined by if they found the imposter
-            if (mostVotedPlayer?.uid === actualImposter?.uid) {
-              // Players found the imposter - non-imposters win
-              setWinner(data.players.find((p) => !p.isImposter));
+              // Winner is determined by if they found the imposter
+              if (mostVotedPlayer?.uid === actualImposter?.uid) {
+                // Players found the imposter - non-imposters win
+                setWinner(data.players.find((p) => !p.isImposter));
+              } else {
+                // Imposter wins
+                setWinner(actualImposter);
+              }
             } else {
-              // Imposter wins
+              // No votes cast - imposter wins by default
+              const actualImposter = data.players.find((p) => p.isImposter);
               setWinner(actualImposter);
             }
           }
@@ -79,15 +109,91 @@ const ResultPage = () => {
   }, [roomId]);
 
   useEffect(() => {
-    // Trigger confetti for winner
-    if (winner && currentUser && winner.uid === currentUser.uid) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
+    // Save game to backend and trigger confetti
+    if (winner && currentUser && roomData && !loading) {
+      // Save game result to backend
+      const gameData = {
+        roomCode: roomData.code,
+        gameId: roomData.gameId,
+        gameName: roomData.gameName,
+        category: roomData.category,
+        players: roomData.players.map((p) => ({
+          uid: p.uid,
+          displayName: p.displayName,
+          photoURL: p.photoURL,
+          score: p.score || 0,
+          isWinner: p.uid === winner.uid,
+          isImposter: p.isImposter || false,
+        })),
+        winner: {
+          uid: winner.uid,
+          displayName: winner.displayName,
+          photoURL: winner.photoURL,
+        },
+        duration: roomData.timer,
+      };
+
+      api
+        .saveGameResult(gameData)
+        .catch((err) => console.error("Failed to save game:", err));
+
+      // Trigger confetti for winner
+      if (winner.uid === currentUser.uid) {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      }
     }
-  }, [winner, currentUser]);
+  }, [winner, currentUser, roomData, loading]);
+
+  const handlePlayAgain = async () => {
+    if (!roomData || !isHost) return;
+
+    try {
+      // Reset room for new game - keep players but reset game data
+      const resetPlayers = roomData.players.map((player) => ({
+        uid: player.uid,
+        displayName: player.displayName,
+        photoURL: player.photoURL,
+        isHost: player.isHost,
+        isReady: player.isHost, // Host is always ready
+        score: 0,
+        vote: null,
+        isImposter: false,
+        assignedWord: null,
+      }));
+
+      await updateDoc(doc(db, "rooms", roomId), {
+        status: "waiting",
+        players: resetPlayers,
+        gameId: null,
+        gameName: null,
+        category: null,
+        timer: null,
+      });
+
+      toast.success("Room reset! Select a new game.");
+      router.push(`/client/${params.id}/start?room=${roomId}`);
+    } catch (error) {
+      console.error("Error resetting room:", error);
+      toast.error("Failed to reset room");
+    }
+  };
+
+  const handleEndRoom = async () => {
+    if (!roomData || !isHost) return;
+
+    try {
+      await deleteDoc(doc(db, "rooms", roomId));
+      toast.success("Room ended successfully");
+      router.push(`/client/${params.id}`);
+    } catch (error) {
+      console.error("Error ending room:", error);
+      toast.error("Failed to end room");
+    }
+  };
 
   if (loading) {
     return (
@@ -246,13 +352,31 @@ const ResultPage = () => {
         </motion.div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="space-y-3">
+          {isHost && (
+            <div className="flex gap-3">
+              <Button
+                onClick={handlePlayAgain}
+                className="flex-1 bg-[#fa5c00] text-white hover:bg-[#fa5c00]/90 rounded-full h-14 text-lg font-semibold gap-2"
+              >
+                <Play className="size-5" />
+                Play Another Game
+              </Button>
+              <Button
+                onClick={handleEndRoom}
+                className="flex-1 bg-red-500 text-white hover:bg-red-600 rounded-full h-14 text-lg font-semibold gap-2"
+              >
+                <X className="size-5" />
+                End Room
+              </Button>
+            </div>
+          )}
           <Button
             onClick={() => router.push(`/client/${params.id}`)}
-            className="flex-1 bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90 rounded-full h-14 text-lg font-semibold"
+            className="w-full bg-[#1a1a1a] text-white hover:bg-[#1a1a1a]/90 rounded-full h-14 text-lg font-semibold gap-2"
           >
             <Home className="size-5" />
-            Back to Home
+            Back to Dashboard
           </Button>
         </div>
       </div>

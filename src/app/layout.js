@@ -17,11 +17,43 @@ const poppins = Poppins({
 export const metadata = {
   title: "JoinUp",
   description: "Game night, made easy.",
+  icons: {
+    icon: "/icon.svg",
+  },
+  manifest: "/manifest.json",
+  themeColor: "#fa5c00",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "JoinUp",
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#fa5c00" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
+        <meta name="apple-mobile-web-app-title" content="JoinUp" />
+        <link rel="apple-touch-icon" href="/icon-192.svg" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js');
+              });
+            }
+          `,
+          }}
+        />
+      </head>
       <body className={`${changaone.variable} ${poppins.variable} antialiased`}>
         <Toaster />
         {children}

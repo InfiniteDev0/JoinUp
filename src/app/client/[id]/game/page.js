@@ -31,6 +31,7 @@ const GamePage = () => {
   const [assignedWord, setAssignedWord] = useState("");
   const [isImposter, setIsImposter] = useState(false);
   const [votingStarted, setVotingStarted] = useState(false);
+  const [wordsRevealed, setWordsRevealed] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
   useEffect(() => {
@@ -69,24 +70,53 @@ const GamePage = () => {
         const triviaQuestions = generateTriviaQuestions(roomData.category);
         setQuestions(triviaQuestions);
       } else if (roomData.gameId === 2) {
-        // Imposter game - assign words
-        const playerIndex = roomData.players.findIndex(
+        // Imposter game - check if words already assigned
+        const currentPlayerData = roomData.players.find(
           (p) => p.uid === currentUser.uid,
         );
-        const imposterIndex = Math.floor(
-          Math.random() * roomData.players.length,
-        );
 
-        if (playerIndex === imposterIndex) {
-          setIsImposter(true);
-          setAssignedWord("IMPOSTER");
+        if (currentPlayerData?.assignedWord) {
+          // Word already assigned (rejoining)
+          setAssignedWord(currentPlayerData.assignedWord);
+          setIsImposter(currentPlayerData.assignedWord === "IMPOSTER");
         } else {
-          const word = generateWord(roomData.category);
-          setAssignedWord(word);
+          // First time - assign words
+          assignWordsToPlayers();
         }
       }
     }
   }, [roomData, currentUser]);
+
+  const assignWordsToPlayers = async () => {
+    if (!roomData || !currentUser) return;
+
+    // Check if host should assign words
+    const isHost = roomData.players.find(
+      (p) => p.uid === currentUser.uid,
+    )?.isHost;
+
+    if (isHost) {
+      // Host assigns words to all players
+      const imposterIndex = Math.floor(Math.random() * roomData.players.length);
+      const word = generateWord(roomData.category);
+
+      const updatedPlayers = roomData.players.map((player, index) => ({
+        ...player,
+        assignedWord: index === imposterIndex ? "IMPOSTER" : word,
+      }));
+
+      try {
+        await updateDoc(doc(db, "rooms", roomId), {
+          players: updatedPlayers,
+        });
+      } catch (error) {
+        console.error("Error assigning words:", error);
+      }
+    }
+
+    // Wait for host to assign words
+    // The useEffect will re-run when roomData updates
+  };
 
   // Timer countdown
   useEffect(() => {
@@ -96,7 +126,12 @@ const GamePage = () => {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && roomData) {
-      handleGameEnd();
+      if (roomData.gameId === 1) {
+        handleGameEnd();
+      } else if (roomData.gameId === 2) {
+        // Show word reveal for imposter game
+        setWordsRevealed(true);
+      }
     }
   }, [timeLeft, roomData]);
 
@@ -495,7 +530,7 @@ const GamePage = () => {
           </div>
         </nav>
 
-        {!votingStarted ? (
+        {!wordsRevealed && !votingStarted ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
             <div className="bg-white rounded-2xl p-8 shadow-lg text-center">
               <p className="text-sm text-gray-600 mb-4">Your Word:</p>
@@ -513,19 +548,62 @@ const GamePage = () => {
                   : "Ask questions to find the imposter. Don't reveal your word!"}
               </p>
               <p className="text-xs text-white/70">
-                Discuss with other players. When time runs out, vote for who you
-                think is the imposter.
+                Discuss with other players. When time runs out, you'll see
+                everyone's words.
               </p>
             </div>
+          </div>
+        ) : wordsRevealed && !votingStarted ? (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-center mb-6">
+              Words Revealed!
+            </h2>
 
-            {timeLeft <= 10 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {roomData.players.map((player) => (
+                <div
+                  key={player.uid}
+                  className={`p-5 rounded-xl border-2 ${
+                    player.assignedWord === "IMPOSTER"
+                      ? "bg-red-50 border-red-500"
+                      : "bg-white border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div
+                      className={`w-12 h-12 rounded-full ${player.assignedWord === "IMPOSTER" ? "bg-red-500" : "bg-[#fa5c00]"} flex items-center justify-center text-white font-bold text-lg`}
+                    >
+                      {player.displayName?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-lg">
+                        {player.displayName}
+                      </p>
+                      {player.isHost && (
+                        <span className="text-xs text-gray-500">Host</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-sm text-gray-600 mb-1">Word:</p>
+                    <p
+                      className={`text-2xl font-bold ${player.assignedWord === "IMPOSTER" ? "text-red-600" : "text-[#fa5c00]"}`}
+                    >
+                      {player.assignedWord}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-center mt-8">
               <Button
-                onClick={handleStartVoting}
-                className="bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90 rounded-full h-14 px-8 text-lg font-semibold"
+                onClick={() => setVotingStarted(true)}
+                className="bg-[#fa5c00] text-white hover:bg-[#fa5c00]/90 rounded-full h-14 px-12 text-lg font-semibold"
               >
-                Start Voting
+                Proceed to Vote
               </Button>
-            )}
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -543,7 +621,7 @@ const GamePage = () => {
                     selectedPlayer === player.uid
                       ? "bg-[#fa5c00] text-white"
                       : "bg-white hover:bg-gray-100 text-black"
-                  }`}
+                  } ${selectedPlayer !== null && selectedPlayer !== player.uid ? "opacity-50" : ""}`}
                 >
                   <div className="w-10 h-10 rounded-full bg-[#fa5c00] flex items-center justify-center text-white font-bold">
                     {player.displayName?.charAt(0).toUpperCase()}

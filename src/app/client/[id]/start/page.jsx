@@ -6,7 +6,7 @@ import { ArrowLeft, Users, Clock, Play } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import React, { useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 
 const StartPage = () => {
@@ -14,11 +14,28 @@ const StartPage = () => {
   const params = useParams();
   const searchParams = useSearchParams();
   const gameId = searchParams.get("game");
+  const existingRoomId = searchParams.get("room");
 
   const [playerCount, setPlayerCount] = useState(2);
   const [gameCategory, setGameCategory] = useState("animals");
   const [timer, setTimer] = useState(60);
   const [isCreating, setIsCreating] = useState(false);
+  const [existingRoom, setExistingRoom] = useState(null);
+
+  // Check if we're reconfiguring an existing room
+  React.useEffect(() => {
+    if (existingRoomId) {
+      const fetchRoom = async () => {
+        const docSnap = await getDoc(doc(db, "rooms", existingRoomId));
+        if (docSnap.exists()) {
+          const room = docSnap.data();
+          setExistingRoom({ id: docSnap.id, ...room });
+          setPlayerCount(room.maxPlayers || 2);
+        }
+      };
+      fetchRoom();
+    }
+  }, [existingRoomId]);
 
   // Game configurations
   const gameConfigs = {
@@ -58,39 +75,54 @@ const StartPage = () => {
 
       const user = JSON.parse(userDetails);
 
-      // Generate room code
-      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      if (existingRoom) {
+        // Update existing room with new game settings
+        await updateDoc(doc(db, "rooms", existingRoomId), {
+          gameId: parseInt(gameId),
+          gameName: currentGame.name,
+          category: gameCategory,
+          timer: timer,
+          maxPlayers: playerCount,
+        });
 
-      // Create game room in Firestore
-      const roomData = {
-        code: roomCode,
-        gameId: parseInt(gameId),
-        gameName: currentGame.name,
-        hostId: user.uid,
-        hostName: user.displayName,
-        maxPlayers: playerCount,
-        category: gameCategory,
-        timer: timer,
-        status: "waiting", // waiting, playing, finished
-        players: [
-          {
-            uid: user.uid,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            isReady: false,
-            isHost: true,
-          },
-        ],
-        createdAt: new Date().toISOString(),
-      };
+        toast.success("Game settings updated!");
+        router.push(`/client/${params.id}/lobby?room=${existingRoomId}`);
+      } else {
+        // Create new room
+        const roomCode = Math.random()
+          .toString(36)
+          .substring(2, 8)
+          .toUpperCase();
 
-      const docRef = await addDoc(collection(db, "rooms"), roomData);
+        const roomData = {
+          code: roomCode,
+          gameId: parseInt(gameId),
+          gameName: currentGame.name,
+          hostId: user.uid,
+          hostName: user.displayName,
+          maxPlayers: playerCount,
+          category: gameCategory,
+          timer: timer,
+          status: "waiting",
+          players: [
+            {
+              uid: user.uid,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              isReady: false,
+              isHost: true,
+            },
+          ],
+          createdAt: new Date().toISOString(),
+        };
 
-      toast.success("Room created!");
-      router.push(`/client/${params.id}/lobby?room=${docRef.id}`);
+        const docRef = await addDoc(collection(db, "rooms"), roomData);
+        toast.success("Room created!");
+        router.push(`/client/${params.id}/lobby?room=${docRef.id}`);
+      }
     } catch (error) {
-      console.error("Error creating room:", error);
-      toast.error("Failed to create room");
+      console.error("Error creating/updating room:", error);
+      toast.error(`Failed to create room: ${error.message}`);
     } finally {
       setIsCreating(false);
     }
@@ -125,10 +157,20 @@ const StartPage = () => {
       {/* Game Setup */}
       <div className="flex flex-col gap-6 max-w-md mx-auto">
         <div>
-          <h2 className="text-2xl font-bold mb-2">{currentGame.name}</h2>
+          <h2 className="text-2xl font-bold mb-2">
+            {existingRoom ? "New Game Settings" : currentGame.name}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Configure your game settings
+            {existingRoom
+              ? "Configure settings for your next game"
+              : "Configure your game settings"}
           </p>
+          {existingRoom && (
+            <p className="text-xs text-[#fa5c00] mt-2">
+              Room Code: {existingRoom.code} • {existingRoom.players.length}{" "}
+              players waiting
+            </p>
+          )}
         </div>
 
         {/* Number of Players */}
@@ -209,9 +251,7 @@ const StartPage = () => {
           </div>
           <div className="flex justify-between">
             <span className="text-white/70">Category:</span>
-            <span className=" text-white capitalize">
-              {gameCategory}
-            </span>
+            <span className=" text-white capitalize">{gameCategory}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-white/70">Timer:</span>
@@ -226,11 +266,15 @@ const StartPage = () => {
           className="w-full bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90 rounded-full h-14 text-lg "
         >
           {isCreating ? (
-            "Creating Room..."
+            existingRoom ? (
+              "Updating..."
+            ) : (
+              "Creating Room..."
+            )
           ) : (
             <>
               <Play className="size-5" />
-              Begin Game
+              {existingRoom ? "Continue to Lobby" : "Begin Game"}
             </>
           )}
         </Button>

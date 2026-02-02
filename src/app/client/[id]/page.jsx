@@ -35,6 +35,7 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
+import { api } from "@/lib/api";
 
 const Page = () => {
   const router = useRouter();
@@ -44,6 +45,7 @@ const Page = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const handleGameClick = (game) => {
     if (game.id > 2) {
@@ -161,6 +163,26 @@ const Page = () => {
         const initials = displayName;
 
         setUserName(initials || "Friend");
+
+        // Sync user with backend
+        api
+          .syncUser({
+            uid: user.uid,
+            displayName: user.displayName,
+            email: user.email,
+            photoURL: user.photoURL,
+            initials: params.id,
+          })
+          .catch((err) => console.error("Failed to sync user:", err));
+
+        // Load unread notifications count
+        api
+          .getNotifications(user.uid)
+          .then((notifications) => {
+            const unread = notifications.filter((n) => !n.read).length;
+            setUnreadNotifications(unread);
+          })
+          .catch((err) => console.error("Failed to load notifications:", err));
       } catch (error) {
         console.error("Error parsing user details:", error);
         setUserName("Friend");
@@ -169,16 +191,18 @@ const Page = () => {
   }, []);
 
   return (
-    <div className="p-5 relative bg-[#ffaa0009] h-screen w-full">
+    <div className="p-5 relative bg-[#ffaa0009] min-h-screen w-full">
       <nav className="flex w-full items-center justify-between mb-10">
         <Button
           onClick={() => setShowMenu(true)}
-          className={"rounded-full border-black/20 w-11 h-11"}
+          className={
+            "rounded-full border-black/20 w-11 h-11 fixed top-5 left-5 z-50"
+          }
           variant="outline"
         >
           <ChartNoAxesGantt className="size-5" />
         </Button>
-        <h1 className="changa text-3xl flex items-center">
+        <h1 className="changa text-3xl flex items-center mx-auto">
           <HyperText animateOnHover={false} duration={1500}>
             Join
           </HyperText>
@@ -192,9 +216,12 @@ const Page = () => {
         </h1>
         <Button
           onClick={() => setShowProfile(true)}
-          className={"rounded-full w-11 h-11"}
+          className={"rounded-full w-11 h-11 relative fixed top-5 right-5 z-50"}
         >
           <User2 />
+          {unreadNotifications > 0 && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+          )}
         </Button>
       </nav>
       {/* hero */}
@@ -214,7 +241,7 @@ const Page = () => {
             className={`rounded-full h-12 transition-all ${
               selectedGame
                 ? "bg-[#fa5c00] text-black hover:bg-[#fa5c00]/90"
-                : "bg-black/50 text-white/50 cursor-not-allowed"
+                : "bg-black text-white/50 cursor-not-allowed"
             }`}
           >
             <Play className="size-5" />
@@ -245,7 +272,7 @@ const Page = () => {
         </div>
 
         {/* games array in cards , game image , below it , game name , and this div is scrool able along the y axis*/}
-        <div className="h-[50vh] grid grid-cols-2 gap-4 overflow-y-scroll pb-20">
+        <div className="grid grid-cols-2 gap-4  pb-20">
           {filteredGames.map((game) => {
             const Icon = game.icon;
             const isLocked = game.id > 2;
@@ -333,32 +360,34 @@ const Page = () => {
                 <MenuItem
                   icon={DoorOpen}
                   label="Join Room"
-                  onClick={() => toast.info("Join room coming soon!")}
+                  onClick={() => {
+                    setShowMenu(false);
+                    router.push(`/client/${params.id}/join`);
+                  }}
                 />
                 <MenuItem
                   icon={Users}
                   label="Active Rooms"
-                  onClick={() => toast.info("Active rooms coming soon!")}
-                />
-                <MenuItem
-                  icon={History}
-                  label="Game History"
-                  onClick={() => toast.info("History coming soon!")}
+                  onClick={() => {
+                    setShowMenu(false);
+                    router.push(`/client/${params.id}/active-rooms`);
+                  }}
                 />
                 <MenuItem
                   icon={Award}
                   label="Leaderboard"
-                  onClick={() => toast.info("Leaderboard coming soon!")}
+                  onClick={() => {
+                    setShowMenu(false);
+                    router.push(`/client/${params.id}/leaderboard`);
+                  }}
                 />
                 <MenuItem
                   icon={BookOpen}
                   label="How to Play"
-                  onClick={() => toast.info("Tutorial coming soon!")}
-                />
-                <MenuItem
-                  icon={Settings}
-                  label="Settings"
-                  onClick={() => toast.info("Settings coming soon!")}
+                  onClick={() => {
+                    setShowMenu(false);
+                    router.push(`/client/${params.id}/how-to-play`);
+                  }}
                 />
               </div>
             </motion.div>
@@ -420,22 +449,27 @@ const Page = () => {
                 <MenuItem
                   icon={BarChart3}
                   label="My Stats"
-                  onClick={() => toast.info("Stats coming soon!")}
+                  onClick={() => {
+                    setShowProfile(false);
+                    router.push(`/client/${params.id}/stats`);
+                  }}
                 />
                 <MenuItem
                   icon={UserPlus}
                   label="Friends"
-                  onClick={() => toast.info("Friends coming soon!")}
+                  onClick={() => {
+                    setShowProfile(false);
+                    router.push(`/client/${params.id}/friends`);
+                  }}
                 />
                 <MenuItem
                   icon={Bell}
                   label="Notifications"
-                  onClick={() => toast.info("Notifications coming soon!")}
-                />
-                <MenuItem
-                  icon={Settings}
-                  label="Account Settings"
-                  onClick={() => toast.info("Settings coming soon!")}
+                  badge={unreadNotifications}
+                  onClick={() => {
+                    setShowProfile(false);
+                    router.push(`/client/${params.id}/notifications`);
+                  }}
                 />
                 <div className="pt-4 border-t mt-4">
                   <MenuItem
@@ -458,13 +492,18 @@ const Page = () => {
 };
 
 // MenuItem Component
-const MenuItem = ({ icon: Icon, label, onClick, className = "" }) => (
+const MenuItem = ({ icon: Icon, label, onClick, className = "", badge }) => (
   <button
     onClick={onClick}
     className={`w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors ${className}`}
   >
     <Icon className="size-5" />
-    <span className="font-medium">{label}</span>
+    <span className="font-medium flex-1 text-left">{label}</span>
+    {badge > 0 && (
+      <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+        {badge > 9 ? "9+" : badge}
+      </span>
+    )}
   </button>
 );
 
