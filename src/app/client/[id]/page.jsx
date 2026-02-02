@@ -40,6 +40,7 @@ const page = () => {
   const [selectedGame, setSelectedGame] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   const handleGameClick = (game) => {
     if (game.id > 2) {
@@ -54,6 +55,7 @@ const page = () => {
       id: 1,
       name: "Trivia Question",
       icon: Brain,
+      category: "mind",
       bgImage:
         "https://www.citypng.com/public/uploads/preview/question-marks-white-sketch-drawing-pattern-doddle-png-704081694705460utw1thhcc3.png?v=2025091316",
     },
@@ -61,6 +63,7 @@ const page = () => {
       id: 2,
       name: "Imposter",
       icon: MessageCircle,
+      category: "tricky",
       bgImage:
         "https://plus.unsplash.com/premium_photo-1672759360872-791a5ba6e2cc?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8b2RkJTIwb25lJTIwb3V0fGVufDB8fDB8fHww",
     },
@@ -68,6 +71,7 @@ const page = () => {
       id: 3,
       name: "Truth or Dare",
       icon: Sparkles,
+      category: "group",
       bgImage:
         "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=400&fit=crop",
     },
@@ -75,6 +79,7 @@ const page = () => {
       id: 4,
       name: "Pictionary",
       icon: Palette,
+      category: "group",
       bgImage:
         "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=400&fit=crop",
     },
@@ -82,6 +87,7 @@ const page = () => {
       id: 5,
       name: "20 Questions",
       icon: HelpCircle,
+      category: "mind",
       bgImage:
         "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&h=400&fit=crop",
     },
@@ -89,6 +95,7 @@ const page = () => {
       id: 6,
       name: "Charades",
       icon: Users,
+      category: "group",
       bgImage:
         "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=400&fit=crop",
     },
@@ -96,6 +103,7 @@ const page = () => {
       id: 7,
       name: "Never Have I Ever",
       icon: Quote,
+      category: "group",
       bgImage:
         "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=400&fit=crop",
     },
@@ -103,6 +111,7 @@ const page = () => {
       id: 8,
       name: "Two Truths One Lie",
       icon: Lightbulb,
+      category: "tricky",
       bgImage:
         "https://images.unsplash.com/photo-1507721999472-8ed4421c4af2?w=400&h=400&fit=crop",
     },
@@ -110,6 +119,7 @@ const page = () => {
       id: 9,
       name: "Riddle Master",
       icon: Zap,
+      category: "mind",
       bgImage:
         "https://images.unsplash.com/photo-1496449903678-68ddcb189a24?w=400&h=400&fit=crop",
     },
@@ -117,10 +127,24 @@ const page = () => {
       id: 10,
       name: "Quiz Battle",
       icon: Trophy,
+      category: "math",
       bgImage:
         "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400&h=400&fit=crop",
     },
   ];
+
+  const categories = [
+    { id: "all", label: "All Games" },
+    { id: "mind", label: "Mind" },
+    { id: "group", label: "Group Games" },
+    { id: "math", label: "Math" },
+    { id: "tricky", label: "Tricky" },
+  ];
+
+  const filteredGames =
+    selectedCategory === "all"
+      ? games
+      : games.filter((game) => game.category === selectedCategory);
 
   useEffect(() => {
     // Get user details from localStorage
@@ -183,9 +207,27 @@ const page = () => {
         <div>
           <h1 className="text-xl">Your Games</h1>
         </div>
+
+        {/* Category Filter Buttons */}
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => setSelectedCategory(category.id)}
+              className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+                selectedCategory === category.id
+                  ? "bg-[#fa5c00] text-white"
+                  : "bg-[#1a1a1a] text-white/70 hover:text-white"
+              }`}
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+
         {/* games array in cards , game image , below it , game name , and this div is scrool able along the y axis*/}
         <div className="h-[50vh] grid grid-cols-2 gap-4 overflow-y-scroll pb-20">
-          {games.map((game) => {
+          {filteredGames.map((game) => {
             const Icon = game.icon;
             const isLocked = game.id > 2;
             return (
