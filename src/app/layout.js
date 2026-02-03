@@ -21,12 +21,15 @@ export const metadata = {
     icon: "/icon.svg",
   },
   manifest: "/manifest.json",
-  themeColor: "#fa5c00",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "JoinUp",
   },
+};
+
+export const viewport = {
+  themeColor: "#fa5c00",
 };
 
 export default function RootLayout({ children }) {
@@ -54,7 +57,9 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className={`${changaone.variable} ${poppins.variable} antialiased `}>
+      <body
+        className={`${changaone.variable} ${poppins.variable} antialiased `}
+      >
         <Toaster position="bottom-center" richColors theme="dark" />
         {children}
       </body>

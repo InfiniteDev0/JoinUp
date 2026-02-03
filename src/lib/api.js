@@ -107,6 +107,22 @@ export const api = {
     return response.json();
   },
 
+  clearAllNotifications: async (uid) => {
+    const response = await fetch(`${API_URL}/notifications/clear-all/${uid}`, {
+      method: "DELETE",
+    });
+    return response.json();
+  },
+
+  saveFCMToken: async (uid, token) => {
+    const response = await fetch(`${API_URL}/notifications/fcm-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, token }),
+    });
+    return response.json();
+  },
+
   // Leaderboard
   getLeaderboard: async (limit = 50) => {
     const response = await fetch(`${API_URL}/leaderboard/top?limit=${limit}`);

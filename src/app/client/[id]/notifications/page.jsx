@@ -9,6 +9,8 @@ import {
   Users,
   CheckCheck,
   Loader2,
+  Trash2,
+  BellRing,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter, useParams } from "next/navigation";
@@ -16,6 +18,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { requestNotificationPermission, getFCMToken } from "@/lib/fcm";
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -23,6 +26,8 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [fcmToken, setFcmToken] = useState(null);
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
 
   useEffect(() => {
     const userDetails = localStorage.getItem("userDetails");
@@ -30,6 +35,13 @@ export default function NotificationsPage() {
       const userData = JSON.parse(userDetails);
       setUser(userData);
       loadNotifications(userData.uid);
+
+      // Check if FCM token exists
+      const token = getFCMToken();
+      if (token) {
+        setFcmToken(token);
+        setNotificationEnabled(true);
+      }
     }
   }, []);
 
@@ -51,6 +63,31 @@ export default function NotificationsPage() {
       toast.success("All notifications marked as read");
     } catch (error) {
       console.error("Failed to mark as read:", error);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      await api.clearAllNotifications(user.uid);
+      setNotifications([]);
+      toast.success("All notifications cleared");
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+      toast.error("Failed to clear notifications");
+    }
+  };
+
+  const enablePushNotifications = async () => {
+    try {
+      const token = await requestNotificationPermission(user.uid);
+      if (token) {
+        setFcmToken(token);
+        setNotificationEnabled(true);
+        toast.success("Push notifications enabled!");
+      }
+    } catch (error) {
+      console.error("Failed to enable notifications:", error);
+      toast.error("Failed to enable notifications");
     }
   };
 
@@ -121,6 +158,34 @@ export default function NotificationsPage() {
       </nav>
 
       <div className="max-w-2xl mx-auto space-y-4">
+        {/* Enable Push Notifications Banner */}
+        {!notificationEnabled && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-[#fa5c00] to-orange-600 rounded-2xl p-6 text-white shadow-lg"
+          >
+            <div className="flex items-center gap-4">
+              <BellRing className="size-12 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-bold text-lg mb-1">
+                  Enable Push Notifications
+                </h3>
+                <p className="text-sm text-white/90 mb-3">
+                  Get instant updates about game invites, wins, and friend
+                  requests!
+                </p>
+                <Button
+                  onClick={enablePushNotifications}
+                  className="bg-white text-[#fa5c00] hover:bg-white/90 h-10 font-semibold"
+                >
+                  Enable Notifications
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Header Actions */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -131,16 +196,29 @@ export default function NotificationsPage() {
               </p>
             )}
           </div>
-          {unreadCount > 0 && (
-            <Button
-              onClick={markAllRead}
-              variant="outline"
-              size="sm"
-              className="text-[#fa5c00]"
-            >
-              Mark all read
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {unreadCount > 0 && (
+              <Button
+                onClick={markAllRead}
+                variant="outline"
+                size="sm"
+                className="text-[#fa5c00]"
+              >
+                Mark all read
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                onClick={clearAllNotifications}
+                variant="outline"
+                size="sm"
+                className="text-red-500 border-red-500 hover:bg-red-50"
+              >
+                <Trash2 className="size-4 mr-1" />
+                Clear All
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Notifications List */}

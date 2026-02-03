@@ -34,3 +34,11 @@ export const auth = getAuth(app);
 // Firestore export for multiplayer game rooms
 import { getFirestore } from "firebase/firestore";
 export const db = getFirestore(app);
+
+// Firebase Cloud Messaging
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+let messaging;
+if (typeof window !== "undefined") {
+  messaging = getMessaging(app);
+}
+export { messaging, getToken, onMessage };

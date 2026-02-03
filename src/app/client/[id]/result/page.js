@@ -11,11 +11,18 @@ import {
   Loader2,
   Play,
   X,
+  Check,
 } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+} from "firebase/firestore";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { motion } from "framer-motion";
@@ -41,16 +48,21 @@ const ResultPage = () => {
       setCurrentUser(user);
     }
 
-    // Fetch final room data
-    const fetchRoomData = async () => {
-      if (roomId) {
-        const docSnap = await getDoc(doc(db, "rooms", roomId));
-        if (docSnap.exists()) {
+    // Listen to room for deletion by host
+    if (roomId) {
+      const unsubscribe = onSnapshot(doc(db, "rooms", roomId), (docSnap) => {
+        if (!docSnap.exists()) {
+          // Room was deleted by host, redirect all players
+          localStorage.removeItem("currentRoomId");
+          localStorage.removeItem("currentGameStatus");
+          localStorage.removeItem("currentRoomData");
+          toast.success("Host ended the room");
+          router.push(`/client/${params.id}`);
+        } else {
           const data = docSnap.data();
           setRoomData({ id: docSnap.id, ...data });
 
           // Check if current user is host
-          const userDetails = localStorage.getItem("userDetails");
           if (userDetails) {
             const user = JSON.parse(userDetails);
             const hostPlayer = data.players.find(
@@ -100,13 +112,14 @@ const ResultPage = () => {
               setWinner(actualImposter);
             }
           }
-        }
-        setLoading(false);
-      }
-    };
 
-    fetchRoomData();
-  }, [roomId]);
+          setLoading(false);
+        }
+      });
+
+      return () => unsubscribe();
+    }
+  }, [roomId, params.id, router]);
 
   useEffect(() => {
     // Save game to backend and trigger confetti
@@ -237,51 +250,71 @@ const ResultPage = () => {
       </nav>
 
       <div className="flex flex-col gap-6 max-w-md mx-auto">
-        {/* Winner Announcement */}
-        <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", duration: 0.8 }}
-          className="text-center"
-        >
-          <Trophy className="size-20 text-[#fa5c00] mx-auto mb-4" />
-          <h2 className="text-3xl font-bold mb-2">
-            {isCurrentUserWinner ? "You Won! 🎉" : "Game Over!"}
-          </h2>
-          <p className="text-lg text-muted-foreground">{roomData?.gameName}</p>
-        </motion.div>
+        {/* Winner Announcement - Only for Trivia */}
+        {roomData?.gameId === 1 && (
+          <>
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", duration: 0.8 }}
+              className="text-center"
+            >
+              <Trophy className="size-20 text-[#fa5c00] mx-auto mb-4" />
+              <h2 className="text-3xl font-bold mb-2">
+                {isCurrentUserWinner ? "You Won! 🎉" : "Game Over!"}
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                {roomData?.gameName}
+              </p>
+            </motion.div>
 
-        {/* Winner Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl p-6 text-white"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold">Winner</h3>
-            <Crown className="size-8" />
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-              {winner?.displayName?.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{winner?.displayName}</p>
-              {roomData?.gameId === 1 && (
-                <p className="text-sm opacity-90">
-                  Score: {winner?.score || 0}
-                </p>
-              )}
-            </div>
-          </div>
-        </motion.div>
+            {/* Winner Card - Only for Trivia */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl p-6 text-white"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Winner</h3>
+                <Crown className="size-8" />
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
+                  {winner?.displayName?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{winner?.displayName}</p>
+                  <p className="text-sm opacity-90">
+                    Score: {winner?.score || 0}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+
+        {/* Imposter Game Title */}
+        {roomData?.gameId === 2 && (
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", duration: 0.8 }}
+            className="text-center"
+          >
+            <Trophy className="size-20 text-[#fa5c00] mx-auto mb-4" />
+            <h2 className="text-3xl font-bold mb-2">Final Results</h2>
+            <p className="text-lg text-muted-foreground">
+              {roomData?.gameName}
+            </p>
+          </motion.div>
+        )}
 
         {/* Leaderboard */}
         <div>
           <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
             <Users className="size-5" />
-            Final Results
+            {roomData?.gameId === 2 ? "Players" : "Final Results"}
           </h3>
           <div className="space-y-2">
             {sortedPlayers.map((player, index) => (
@@ -291,15 +324,17 @@ const ResultPage = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 + index * 0.1 }}
                 className={`rounded-lg p-4 flex items-center justify-between ${
-                  player.uid === winner?.uid
+                  roomData?.gameId === 1 && player.uid === winner?.uid
                     ? "bg-[#fa5c00]/10 border-2 border-[#fa5c00]"
                     : "bg-[#1a1a1a]"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#fa5c00]/20 flex items-center justify-center font-bold text-sm">
-                    #{index + 1}
-                  </div>
+                  {roomData?.gameId === 1 && (
+                    <div className="w-8 h-8 rounded-full bg-[#fa5c00]/20 flex items-center justify-center font-bold text-sm">
+                      #{index + 1}
+                    </div>
+                  )}
                   <div className="w-10 h-10 rounded-full bg-[#fa5c00] flex items-center justify-center text-white font-bold">
                     {player.displayName?.charAt(0).toUpperCase()}
                   </div>
@@ -307,17 +342,32 @@ const ResultPage = () => {
                     <p className="font-semibold text-white">
                       {player.displayName}
                     </p>
-                    {roomData?.gameId === 2 && player.isImposter && (
-                      <p className="text-xs text-red-500">Imposter</p>
-                    )}
+                    {roomData?.gameId === 2 &&
+                      player.assignedWord === "IMPOSTER" && (
+                        <p className="text-xs text-red-500">Imposter</p>
+                      )}
                   </div>
                 </div>
-                {roomData?.gameId === 1 && (
+                {roomData?.gameId === 1 ? (
                   <div className="flex items-center gap-2">
                     <Target className="size-4 text-white/70" />
                     <span className="font-bold text-white">
                       {player.score || 0}
                     </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full">
+                    {player.assignedWord === "IMPOSTER" ? (
+                      <X
+                        className="size-6 text-red-500 font-bold"
+                        strokeWidth={3}
+                      />
+                    ) : (
+                      <Check
+                        className="size-6 text-green-500 font-bold"
+                        strokeWidth={3}
+                      />
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -359,7 +409,7 @@ const ResultPage = () => {
 
         {/* Actions */}
         <div className="space-y-3">
-          {isHost && (
+          {isHost && roomData?.gameId === 1 && (
             <div className="flex gap-3">
               <Button
                 onClick={handlePlayAgain}
@@ -377,19 +427,22 @@ const ResultPage = () => {
               </Button>
             </div>
           )}
-          <Button
-            onClick={() => {
-              // Clear room data from localStorage
-              localStorage.removeItem("currentRoomId");
-              localStorage.removeItem("currentGameStatus");
-              localStorage.removeItem("currentRoomData");
-              router.push(`/client/${params.id}`);
-            }}
-            className="w-full bg-[#1a1a1a] text-white hover:bg-[#1a1a1a]/90 rounded-full h-14 text-lg font-semibold gap-2"
-          >
-            <Home className="size-5" />
-            Back to Dashboard
-          </Button>
+          {isHost && roomData?.gameId === 2 && (
+            <Button
+              onClick={handleEndRoom}
+              className="w-full bg-red-500 text-white hover:bg-red-600 rounded-full h-14 text-lg font-semibold gap-2"
+            >
+              <X className="size-5" />
+              End Room
+            </Button>
+          )}
+          {!isHost && (
+            <div className="text-center p-6 bg-[#1a1a1a] rounded-lg">
+              <p className="text-white/70 text-sm">
+                Waiting for host to end the room...
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -381,14 +381,6 @@ const Page = () => {
                   }}
                 />
                 <MenuItem
-                  icon={Users}
-                  label="Active Rooms"
-                  onClick={() => {
-                    setShowMenu(false);
-                    router.push(`/client/${params.id}/active-rooms`);
-                  }}
-                />
-                <MenuItem
                   icon={Award}
                   label="Leaderboard"
                   onClick={() => {

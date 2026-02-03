@@ -36,12 +36,190 @@ const GamePage = () => {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
 
+  // Helper functions - declared before useEffects to avoid hoisting issues
+  const generateTriviaQuestions = (category) => {
+    const questionBank = {
+      animals: [
+        {
+          question: "What is the largest land animal?",
+          options: ["Elephant", "Giraffe", "Rhino", "Hippo"],
+          correct: 0,
+        },
+        {
+          question: "Which animal is known as the 'King of the Jungle'?",
+          options: ["Tiger", "Lion", "Leopard", "Cheetah"],
+          correct: 1,
+        },
+        {
+          question: "What is the fastest land animal?",
+          options: ["Cheetah", "Lion", "Horse", "Gazelle"],
+          correct: 0,
+        },
+        {
+          question: "Which bird cannot fly?",
+          options: ["Sparrow", "Eagle", "Penguin", "Parrot"],
+          correct: 2,
+        },
+        {
+          question: "What is the largest ocean animal?",
+          options: ["Shark", "Blue Whale", "Dolphin", "Orca"],
+          correct: 1,
+        },
+      ],
+      places: [
+        {
+          question: "Which is the tallest mountain in the world?",
+          options: ["K2", "Everest", "Kilimanjaro", "Denali"],
+          correct: 1,
+        },
+        {
+          question: "What is the capital of France?",
+          options: ["London", "Berlin", "Paris", "Madrid"],
+          correct: 2,
+        },
+        {
+          question: "Which country is known as the Land of the Rising Sun?",
+          options: ["China", "Korea", "Japan", "Thailand"],
+          correct: 2,
+        },
+        {
+          question: "What is the largest desert in the world?",
+          options: ["Sahara", "Gobi", "Kalahari", "Arabian"],
+          correct: 0,
+        },
+        {
+          question: "Which river is the longest in the world?",
+          options: ["Amazon", "Nile", "Mississippi", "Yangtze"],
+          correct: 1,
+        },
+      ],
+      objects: [
+        {
+          question: "What device is used to measure temperature?",
+          options: ["Barometer", "Thermometer", "Hygrometer", "Speedometer"],
+          correct: 1,
+        },
+        {
+          question: "Which object is used to tell time?",
+          options: ["Compass", "Clock", "Ruler", "Scale"],
+          correct: 1,
+        },
+        {
+          question: "What is used to write on a blackboard?",
+          options: ["Pen", "Pencil", "Chalk", "Marker"],
+          correct: 2,
+        },
+        {
+          question: "Which object helps you see in the dark?",
+          options: ["Mirror", "Flashlight", "Magnifier", "Binoculars"],
+          correct: 1,
+        },
+        {
+          question: "What do you use to cut paper?",
+          options: ["Scissors", "Knife", "Blade", "Saw"],
+          correct: 0,
+        },
+      ],
+      actions: [
+        {
+          question: "What action do you do when you are tired?",
+          options: ["Jump", "Sleep", "Run", "Dance"],
+          correct: 1,
+        },
+        {
+          question: "What do you do with food?",
+          options: ["Throw", "Eat", "Break", "Paint"],
+          correct: 1,
+        },
+        {
+          question: "What action requires water?",
+          options: ["Flying", "Swimming", "Walking", "Singing"],
+          correct: 1,
+        },
+        {
+          question: "What do you do with music?",
+          options: ["Read", "Write", "Listen", "Build"],
+          correct: 2,
+        },
+        {
+          question: "What action makes you move faster?",
+          options: ["Walking", "Running", "Sitting", "Standing"],
+          correct: 1,
+        },
+      ],
+    };
+
+    return questionBank[category] || questionBank.animals;
+  };
+
+  const generateWord = (category) => {
+    const wordBank = {
+      objects: [
+        "Chair",
+        "Lamp",
+        "Phone",
+        "Book",
+        "Pen",
+        "Table",
+        "Clock",
+        "Mirror",
+      ],
+      places: [
+        "Beach",
+        "Mountain",
+        "Desert",
+        "Forest",
+        "City",
+        "Village",
+        "Island",
+        "Valley",
+      ],
+      actions: [
+        "Running",
+        "Swimming",
+        "Dancing",
+        "Singing",
+        "Cooking",
+        "Reading",
+        "Writing",
+        "Jumping",
+      ],
+      animals: [
+        "Dog",
+        "Cat",
+        "Bird",
+        "Fish",
+        "Elephant",
+        "Lion",
+        "Tiger",
+        "Bear",
+      ],
+    };
+
+    const words = wordBank[category] || wordBank.objects;
+    return words[Math.floor(Math.random() * words.length)];
+  };
+
   useEffect(() => {
     // Get current user
     const userDetails = localStorage.getItem("userDetails");
     if (userDetails) {
       setCurrentUser(JSON.parse(userDetails));
     }
+
+    // Prevent navigation away from game page for non-host players
+    const handleBeforeUnload = (e) => {
+      const user = JSON.parse(localStorage.getItem("userDetails") || "{}");
+      const isHost = roomData?.players?.find((p) => p.uid === user.uid)?.isHost;
+
+      if (!isHost && roomData?.status === "playing") {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     // Listen to room updates
     if (roomId) {
@@ -70,9 +248,16 @@ const GamePage = () => {
         setLoading(false);
       });
 
-      return () => unsubscribe();
+      return () => {
+        unsubscribe();
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
     }
-  }, [roomId, params.id, router]);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [roomId, params.id, router, roomData]);
 
   // Initialize game based on type
   useEffect(() => {
@@ -140,11 +325,15 @@ const GamePage = () => {
     // The useEffect will re-run when roomData updates
   };
 
-  // Timer countdown
+  // Timer countdown - Only for host in Imposter game
   useEffect(() => {
-    // For Imposter game, only count down if timer has started (all players ready)
+    // For Trivia, everyone counts down. For Imposter, only host counts down
+    const isHost = roomData?.players.find(
+      (p) => p.uid === currentUser?.uid,
+    )?.isHost;
     const shouldCountDown =
-      roomData?.gameId === 1 || (roomData?.gameId === 2 && timerStarted);
+      roomData?.gameId === 1 ||
+      (roomData?.gameId === 2 && timerStarted && isHost);
 
     if (timeLeft > 0 && shouldCountDown) {
       const timer = setTimeout(() => {
@@ -155,222 +344,11 @@ const GamePage = () => {
       if (roomData.gameId === 1) {
         handleGameEnd();
       } else if (roomData.gameId === 2) {
-        // Show word reveal for imposter game
-        setWordsRevealed(true);
+        // Timer ended - show time's up notification for host
+        // Don't auto-reveal, wait for host to click reveal
       }
     }
-  }, [timeLeft, roomData, timerStarted]);
-
-  const generateTriviaQuestions = (category) => {
-    const questionBank = {
-      animals: [
-        {
-          question: "What is the largest land animal?",
-          options: ["Elephant", "Giraffe", "Rhino", "Hippo"],
-          correct: 0,
-        },
-        {
-          question: "How many legs does a spider have?",
-          options: ["6", "8", "10", "12"],
-          correct: 1,
-        },
-        {
-          question: "What is the fastest land animal?",
-          options: ["Lion", "Cheetah", "Leopard", "Tiger"],
-          correct: 1,
-        },
-        {
-          question: "Which animal is known as the 'King of the Jungle'?",
-          options: ["Tiger", "Lion", "Bear", "Gorilla"],
-          correct: 1,
-        },
-        {
-          question: "What do pandas primarily eat?",
-          options: ["Meat", "Fish", "Bamboo", "Berries"],
-          correct: 2,
-        },
-      ],
-      football: [
-        {
-          question: "How many players are on a football team?",
-          options: ["9", "10", "11", "12"],
-          correct: 2,
-        },
-        {
-          question: "Who won the 2018 FIFA World Cup?",
-          options: ["Brazil", "Germany", "France", "Argentina"],
-          correct: 2,
-        },
-        {
-          question: "What is the maximum duration of a football match?",
-          options: ["80 mins", "90 mins", "100 mins", "120 mins"],
-          correct: 1,
-        },
-        {
-          question: "Which country has won the most World Cups?",
-          options: ["Germany", "Argentina", "Brazil", "Italy"],
-          correct: 2,
-        },
-        {
-          question: "What color card does a referee show for a serious foul?",
-          options: ["Yellow", "Red", "Blue", "Green"],
-          correct: 1,
-        },
-      ],
-      history: [
-        {
-          question: "In which year did World War II end?",
-          options: ["1943", "1944", "1945", "1946"],
-          correct: 2,
-        },
-        {
-          question: "Who was the first President of the United States?",
-          options: [
-            "Thomas Jefferson",
-            "George Washington",
-            "John Adams",
-            "Benjamin Franklin",
-          ],
-          correct: 1,
-        },
-        {
-          question:
-            "The Great Wall of China was built to protect against which group?",
-          options: ["Mongols", "Japanese", "British", "French"],
-          correct: 0,
-        },
-        {
-          question: "Which empire built Machu Picchu?",
-          options: ["Maya", "Aztec", "Inca", "Olmec"],
-          correct: 2,
-        },
-        {
-          question: "Who painted the Mona Lisa?",
-          options: [
-            "Michelangelo",
-            "Leonardo da Vinci",
-            "Raphael",
-            "Donatello",
-          ],
-          correct: 1,
-        },
-      ],
-      science: [
-        {
-          question: "What is the chemical symbol for water?",
-          options: ["H2O", "CO2", "O2", "N2"],
-          correct: 0,
-        },
-        {
-          question: "How many planets are in our solar system?",
-          options: ["7", "8", "9", "10"],
-          correct: 1,
-        },
-        {
-          question: "What is the speed of light?",
-          options: [
-            "300,000 km/s",
-            "150,000 km/s",
-            "500,000 km/s",
-            "1,000,000 km/s",
-          ],
-          correct: 0,
-        },
-        {
-          question: "What is the largest organ in the human body?",
-          options: ["Heart", "Brain", "Liver", "Skin"],
-          correct: 3,
-        },
-        {
-          question: "What gas do plants absorb from the atmosphere?",
-          options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"],
-          correct: 2,
-        },
-      ],
-      entertainment: [
-        {
-          question: "Which movie won the Oscar for Best Picture in 2020?",
-          options: ["Joker", "1917", "Parasite", "Once Upon a Time"],
-          correct: 2,
-        },
-        {
-          question: "Who is known as the 'King of Pop'?",
-          options: ["Elvis Presley", "Michael Jackson", "Prince", "Madonna"],
-          correct: 1,
-        },
-        {
-          question: "How many Harry Potter books are there?",
-          options: ["5", "6", "7", "8"],
-          correct: 2,
-        },
-        {
-          question: "Which streaming service created Stranger Things?",
-          options: ["Hulu", "Amazon Prime", "Netflix", "Disney+"],
-          correct: 2,
-        },
-        {
-          question: "Who directed the movie Inception?",
-          options: [
-            "Steven Spielberg",
-            "Christopher Nolan",
-            "James Cameron",
-            "Quentin Tarantino",
-          ],
-          correct: 1,
-        },
-      ],
-    };
-
-    return questionBank[category] || questionBank.animals;
-  };
-
-  const generateWord = (category) => {
-    const wordBank = {
-      objects: [
-        "Chair",
-        "Lamp",
-        "Phone",
-        "Book",
-        "Pen",
-        "Table",
-        "Clock",
-        "Mirror",
-      ],
-      places: [
-        "Beach",
-        "Mountain",
-        "Desert",
-        "Forest",
-        "City",
-        "Village",
-        "Island",
-        "Valley",
-      ],
-      actions: [
-        "Running",
-        "Swimming",
-        "Dancing",
-        "Singing",
-        "Cooking",
-        "Reading",
-        "Writing",
-        "Jumping",
-      ],
-      animals: [
-        "Dog",
-        "Cat",
-        "Bird",
-        "Fish",
-        "Elephant",
-        "Lion",
-        "Tiger",
-        "Bear",
-      ],
-    };
-
-    const words = wordBank[category] || wordBank.objects;
-    return words[Math.floor(Math.random() * words.length)];
-  };
+  }, [timeLeft, roomData, timerStarted, currentUser]);
 
   const handleAnswerSelect = (answerIndex) => {
     if (selectedAnswer !== null) return;
@@ -450,17 +428,29 @@ const GamePage = () => {
     }
   };
 
-  const handleStartVoting = () => {
-    setVotingStarted(true);
-  };
+  const handleRevealImposter = async () => {
+    if (!roomData || !currentUser) return;
 
-  const handleVotePlayer = async (playerId) => {
-    setSelectedPlayer(playerId);
+    // Check if user is host
+    const isHost = roomData.players.find(
+      (p) => p.uid === currentUser.uid,
+    )?.isHost;
 
-    // Wait a bit then end game
-    setTimeout(() => {
-      handleGameEnd();
-    }, 1000);
+    if (!isHost) {
+      toast.error("Only the host can reveal the imposter");
+      return;
+    }
+
+    try {
+      // Update room to show words revealed
+      await updateDoc(doc(db, "rooms", roomId), {
+        wordsRevealed: true,
+      });
+      setWordsRevealed(true);
+    } catch (error) {
+      console.error("Error revealing imposter:", error);
+      toast.error("Failed to reveal imposter");
+    }
   };
 
   const handleGameEnd = async () => {
@@ -602,6 +592,11 @@ const GamePage = () => {
 
   // Imposter Game UI
   if (roomData?.gameId === 2) {
+    const isHost = roomData.players.find(
+      (p) => p.uid === currentUser?.uid,
+    )?.isHost;
+    const showWordsRevealed = wordsRevealed || roomData.wordsRevealed;
+
     return (
       <div className="p-5 relative bg-[#ffaa0009] min-h-screen w-full">
         {/* Header */}
@@ -622,13 +617,93 @@ const GamePage = () => {
               Up
             </HyperText>
           </h1>
-          <div className="flex items-center gap-2">
-            <Clock className="size-5 text-[#fa5c00]" />
-            <span className="font-bold text-lg">{timeLeft}s</span>
-          </div>
+          {/* Only host sees small timer in header */}
+          {isHost && timerStarted && timeLeft > 0 && (
+            <div className="flex items-center gap-2">
+              <Clock className="size-5 text-[#fa5c00]" />
+              <span className="font-bold text-lg">{timeLeft}s</span>
+            </div>
+          )}
+          {!isHost || !timerStarted || timeLeft === 0 ? (
+            <div className="w-16" />
+          ) : null}
         </nav>
 
-        {!wordsRevealed && !votingStarted ? (
+        {/* Big Timer Display - Only for host when game is running */}
+        {isHost && timerStarted && timeLeft > 0 && !showWordsRevealed && (
+          <div className="flex flex-col items-center justify-center mb-8">
+            <div className="relative w-56 h-56">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle
+                  cx="112"
+                  cy="112"
+                  r="100"
+                  stroke="#e5e7eb"
+                  strokeWidth="10"
+                  fill="none"
+                />
+                <circle
+                  cx="112"
+                  cy="112"
+                  r="100"
+                  stroke="#fa5c00"
+                  strokeWidth="10"
+                  fill="none"
+                  strokeDasharray={`${(timeLeft / roomData.timer) * 628} 628`}
+                  strokeLinecap="round"
+                  className="transition-all duration-1000"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-6xl font-bold">
+                  {Math.floor(timeLeft / 60)}:
+                  {(timeLeft % 60).toString().padStart(2, "0")}
+                </span>
+                <span className="text-sm text-gray-500 mt-2">
+                  ⏰{" "}
+                  {new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Time's Up notification - Only for host */}
+        {isHost && timeLeft === 0 && timerStarted && !showWordsRevealed && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="flex flex-col items-center justify-center min-h-[50vh] gap-6"
+          >
+            <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-3xl p-10 shadow-2xl text-center max-w-md">
+              <motion.div
+                animate={{ rotate: [0, 15, -15, 0] }}
+                transition={{ repeat: Infinity, duration: 0.6 }}
+                className="text-7xl mb-4"
+              >
+                ⏰
+              </motion.div>
+              <h2 className="text-5xl font-bold text-white mb-3">
+                Time&apos;s Up!
+              </h2>
+              <p className="text-white/90 text-xl">Discussion time is over</p>
+            </div>
+
+            <Button
+              onClick={handleRevealImposter}
+              className="bg-[#fa5c00] text-white hover:bg-[#fa5c00]/90 rounded-full h-16 px-12 text-xl font-semibold shadow-lg"
+            >
+              Reveal Imposter
+            </Button>
+          </motion.div>
+        )}
+
+        {!showWordsRevealed &&
+        (isHost ? timeLeft > 0 || !timerStarted : true) ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
             <div className="bg-white rounded-2xl p-8 shadow-lg text-center">
               <p className="text-sm text-gray-600 mb-4">Your Word:</p>
@@ -703,9 +778,9 @@ const GamePage = () => {
               </div>
             )}
           </div>
-        ) : wordsRevealed && !votingStarted ? (
+        ) : showWordsRevealed ? (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-center mb-6">
+            <h2 className="text-3xl font-bold text-center mb-6">
               Words Revealed!
             </h2>
 
@@ -737,7 +812,7 @@ const GamePage = () => {
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <p className="text-sm text-gray-600 mb-1">Word:</p>
                     <p
-                      className={`text-2xl font-bold ${player.assignedWord === "IMPOSTER" ? "text-red-600" : "text-[#fa5c00]"}`}
+                      className={`text-3xl font-bold ${player.assignedWord === "IMPOSTER" ? "text-red-600" : "text-[#fa5c00]"}`}
                     >
                       {player.assignedWord}
                     </p>
@@ -746,42 +821,27 @@ const GamePage = () => {
               ))}
             </div>
 
-            <div className="flex justify-center mt-8">
-              <Button
-                onClick={() => setVotingStarted(true)}
-                className="bg-[#fa5c00] text-white hover:bg-[#fa5c00]/90 rounded-full h-14 px-12 text-lg font-semibold"
-              >
-                Proceed to Vote
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-center mb-6">
-              Vote for the Imposter
-            </h2>
-
-            <div className="grid grid-cols-1 gap-3">
-              {roomData.players.map((player) => (
-                <button
-                  key={player.uid}
-                  onClick={() => handleVotePlayer(player.uid)}
-                  disabled={selectedPlayer !== null}
-                  className={`p-4 rounded-xl font-semibold text-lg transition-all flex items-center gap-3 ${
-                    selectedPlayer === player.uid
-                      ? "bg-[#fa5c00] text-white"
-                      : "bg-white hover:bg-gray-100 text-black"
-                  } ${selectedPlayer !== null && selectedPlayer !== player.uid ? "opacity-50" : ""}`}
+            {/* Only host can end game */}
+            {isHost && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  onClick={async () => {
+                    try {
+                      await updateDoc(doc(db, "rooms", roomId), {
+                        status: "finished",
+                      });
+                    } catch (error) {
+                      console.error("Error ending game:", error);
+                    }
+                  }}
+                  className="bg-[#fa5c00] text-white hover:bg-[#fa5c00]/90 rounded-full h-14 px-12 text-lg font-semibold"
                 >
-                  <div className="w-10 h-10 rounded-full bg-[#fa5c00] flex items-center justify-center text-white font-bold">
-                    {player.displayName?.charAt(0).toUpperCase()}
-                  </div>
-                  <span>{player.displayName}</span>
-                </button>
-              ))}
-            </div>
+                  End Game
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+        ) : null}
       </div>
     );
   }

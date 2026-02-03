@@ -75,7 +75,7 @@ export const AnimatedTooltip = ({ items }) => {
         })}
       </div>
       <div className="h-[30vh] px-20 flex flex-col gap-1 items-center justify-center w-full text-center text-sm">
-        "{items[activeIndex]?.body}"
+        &quot;{items[activeIndex]?.body}&quot;
         <p className="text-center">@{items[activeIndex]?.name}</p>
         <p className="text-center  text-gray-500">
           {items[activeIndex]?.designation}

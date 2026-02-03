@@ -193,8 +193,8 @@ const JoinRoomPage = () => {
           <ol className="text-xs text-white/70 space-y-1">
             <li>1. Ask your friend for their room code</li>
             <li>2. Enter the 6-character code above</li>
-            <li>3. Click "Join Room" to enter the lobby</li>
-            <li>4. Mark yourself as ready when you're set</li>
+            <li>3. Click &quot;Join Room&quot; to enter the lobby</li>
+            <li>4. Mark yourself as ready when you&apos;re set</li>
           </ol>
         </div>
       </div>
