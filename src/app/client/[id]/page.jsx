@@ -36,6 +36,8 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 const Page = () => {
   const router = useRouter();
@@ -152,20 +154,56 @@ const Page = () => {
       : games.filter((game) => game.category === selectedCategory);
 
   useEffect(() => {
-    // Check if user has an active room and redirect them back
+    // Check if user has an active room and verify it still exists
     const currentRoomId = localStorage.getItem("currentRoomId");
     const currentGameStatus = localStorage.getItem("currentGameStatus");
 
-    if (currentRoomId && currentGameStatus) {
-      // User has an active room, redirect them back
-      if (currentGameStatus === "playing") {
-        router.push(`/client/${params.id}/game?room=${currentRoomId}`);
-        return;
-      } else if (currentGameStatus === "waiting") {
-        router.push(`/client/${params.id}/lobby?room=${currentRoomId}`);
-        return;
+    const verifyAndRedirect = async () => {
+      if (currentRoomId && currentGameStatus) {
+        try {
+          // Verify room still exists in Firestore
+          const roomRef = doc(db, "rooms", currentRoomId);
+          const roomSnap = await getDoc(roomRef);
+
+          if (roomSnap.exists()) {
+            const roomData = roomSnap.data();
+
+            // Check if room status matches what we expect
+            if (roomData.status === "ended" || roomData.status === "finished") {
+              // Room has ended, clear localStorage
+              localStorage.removeItem("currentRoomId");
+              localStorage.removeItem("currentGameStatus");
+              localStorage.removeItem("currentRoomData");
+              toast.info("Previous game has ended");
+              return;
+            }
+
+            // Room exists and is active, redirect back
+            if (currentGameStatus === "playing") {
+              router.push(`/client/${params.id}/game?room=${currentRoomId}`);
+              return;
+            } else if (currentGameStatus === "waiting") {
+              router.push(`/client/${params.id}/lobby?room=${currentRoomId}`);
+              return;
+            }
+          } else {
+            // Room doesn't exist anymore, clear localStorage
+            localStorage.removeItem("currentRoomId");
+            localStorage.removeItem("currentGameStatus");
+            localStorage.removeItem("currentRoomData");
+            toast.info("Previous game room no longer exists");
+          }
+        } catch (error) {
+          console.error("Error checking room:", error);
+          // Clear localStorage on error
+          localStorage.removeItem("currentRoomId");
+          localStorage.removeItem("currentGameStatus");
+          localStorage.removeItem("currentRoomData");
+        }
       }
-    }
+    };
+
+    verifyAndRedirect();
 
     // Get user details from localStorage
     const userDetails = localStorage.getItem("userDetails");

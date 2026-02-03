@@ -74,10 +74,12 @@ export const AnimatedTooltip = ({ items }) => {
           );
         })}
       </div>
-      <div className="h-[30vh] px-20 flex flex-col gap-1 items-center justify-center w-full text-center text-sm">
+      <div className="px-4 sm:px-20 py-6 flex flex-col gap-2 items-center justify-center w-full text-center text-base sm:text-lg">
         &quot;{items[activeIndex]?.body}&quot;
-        <p className="text-center">@{items[activeIndex]?.name}</p>
-        <p className="text-center  text-gray-500">
+        <p className="text-center text-base sm:text-lg font-medium">
+          @{items[activeIndex]?.name}
+        </p>
+        <p className="text-center text-gray-400 text-sm sm:text-base">
           {items[activeIndex]?.designation}
         </p>
       </div>
