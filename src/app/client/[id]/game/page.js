@@ -236,10 +236,19 @@ const GamePage = () => {
           if (data.status === "finished") {
             router.push(`/client/${params.id}/result?room=${roomId}`);
           }
+
+          // Check if game ended by host
+          if (data.status === "ended") {
+            toast.success("Game ended by host");
+            localStorage.removeItem("currentRoomId");
+            localStorage.removeItem("currentGameStatus");
+            localStorage.removeItem("currentRoomData");
+            router.push(`/client/${params.id}`);
+          }
         } else {
           // Only redirect if not loading (prevents redirect on initial mount)
           if (!loading) {
-            toast.error("Room not found");
+            toast.info("Game has ended");
             localStorage.removeItem("currentRoomId");
             localStorage.removeItem("currentGameStatus");
             router.push(`/client/${params.id}`);
@@ -422,14 +431,27 @@ const GamePage = () => {
     }
 
     try {
-      await deleteDoc(doc(db, "rooms", roomId));
+      // First, update room status to 'ended' to notify all players
+      await updateDoc(doc(db, "rooms", roomId), {
+        status: "ended",
+      });
+
+      // Wait a moment for all clients to receive the update
+      setTimeout(async () => {
+        try {
+          // Then delete the room
+          await deleteDoc(doc(db, "rooms", roomId));
+        } catch (error) {
+          console.error("Error deleting room:", error);
+        }
+      }, 1000);
 
       // Clear room data from localStorage
       localStorage.removeItem("currentRoomId");
       localStorage.removeItem("currentGameStatus");
       localStorage.removeItem("currentRoomData");
 
-      toast.success("Room ended");
+      toast.success("Game ended");
       router.push(`/client/${params.id}`);
     } catch (error) {
       console.error("Error ending room:", error);
@@ -735,6 +757,17 @@ const GamePage = () => {
                   : "Click ready when you've seen your word. Timer starts when all players are ready."}
               </p>
             </div>
+
+            {/* End Game Button - Only for host when timer is running */}
+            {isHost && timerStarted && (
+              <Button
+                onClick={handleEndRoom}
+                variant="outline"
+                className="w-full max-w-md h-12 rounded-full text-base font-semibold border-red-500 text-red-500 hover:bg-red-50"
+              >
+                End Game
+              </Button>
+            )}
 
             {!timerStarted && (
               <div className="w-full max-w-md space-y-4">
