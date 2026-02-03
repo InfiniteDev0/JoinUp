@@ -73,7 +73,7 @@ export default function NotificationsPage() {
       toast.success("All notifications cleared");
     } catch (error) {
       console.error("Failed to clear notifications:", error);
-      toast.error("Failed to clear notifications");
+      toast.error("Failed to clear notifications. Please try again.");
     }
   };
 
@@ -187,38 +187,42 @@ export default function NotificationsPage() {
         )}
 
         {/* Header Actions */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">Notifications</h2>
-            {unreadCount > 0 && (
-              <p className="text-sm text-muted-foreground">
-                {unreadCount} unread
-              </p>
-            )}
+        <div className="space-y-3 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Notifications</h2>
+              {unreadCount > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {unreadCount} unread
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex gap-2">
-            {unreadCount > 0 && (
-              <Button
-                onClick={markAllRead}
-                variant="outline"
-                size="sm"
-                className="text-[#fa5c00]"
-              >
-                Mark all read
-              </Button>
-            )}
-            {notifications.length > 0 && (
-              <Button
-                onClick={clearAllNotifications}
-                variant="outline"
-                size="sm"
-                className="text-red-500 border-red-500 hover:bg-red-50"
-              >
-                <Trash2 className="size-4 mr-1" />
-                Clear All
-              </Button>
-            )}
-          </div>
+          {(unreadCount > 0 || notifications.length > 0) && (
+            <div className="flex gap-2">
+              {unreadCount > 0 && (
+                <Button
+                  onClick={markAllRead}
+                  variant="outline"
+                  size="sm"
+                  className="text-[#fa5c00] flex-1 sm:flex-none"
+                >
+                  Mark all read
+                </Button>
+              )}
+              {notifications.length > 0 && (
+                <Button
+                  onClick={clearAllNotifications}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-500 border-red-500 hover:bg-red-50 flex-1 sm:flex-none"
+                >
+                  <Trash2 className="size-4 mr-1" />
+                  Clear All
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Notifications List */}

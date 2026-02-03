@@ -111,6 +111,9 @@ export const api = {
     const response = await fetch(`${API_URL}/notifications/clear-all/${uid}`, {
       method: "DELETE",
     });
+    if (!response.ok) {
+      throw new Error(`Failed to clear notifications: ${response.status}`);
+    }
     return response.json();
   },
 
@@ -120,6 +123,9 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uid, token }),
     });
+    if (!response.ok) {
+      throw new Error(`Failed to save FCM token: ${response.status}`);
+    }
     return response.json();
   },
 
