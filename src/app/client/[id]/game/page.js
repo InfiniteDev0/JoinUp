@@ -279,12 +279,18 @@ const GamePage = () => {
           setAssignedWord(currentPlayerData.assignedWord);
           setIsImposter(currentPlayerData.assignedWord === "IMPOSTER");
           setIsPlayerReady(currentPlayerData.isGameReady || false);
+          setWordsRevealed(roomData.wordsRevealed || false);
 
           // Check if all players are ready to start timer
           const allReady = roomData.players.every((p) => p.isGameReady);
-          if (allReady && !timerStarted) {
-            setTimeLeft(roomData.timer);
-            setTimerStarted(true);
+          if (allReady) {
+            if (!timerStarted) {
+              setTimeLeft(roomData.timer);
+              setTimerStarted(true);
+            }
+          } else {
+            // Not all ready yet, reset timer state
+            setTimerStarted(false);
           }
         } else {
           // First time - assign words
@@ -381,17 +387,20 @@ const GamePage = () => {
         return player;
       });
 
+      // Check if all players are ready
+      const allReady = updatedPlayers.every((p) => p.isGameReady);
+
       await updateDoc(doc(db, "rooms", roomId), {
         players: updatedPlayers,
+        allPlayersReady: allReady, // Add flag to track when timer should start
       });
 
       setIsPlayerReady(true);
       toast.success("You are ready!");
 
-      // Check if all players are ready
-      const allReady = updatedPlayers.every((p) => p.isGameReady);
       if (allReady) {
         toast.success("All players ready! Timer starting...");
+        setTimerStarted(true);
       }
     } catch (error) {
       console.error("Error marking ready:", error);
