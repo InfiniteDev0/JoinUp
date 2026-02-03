@@ -2,11 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { HyperText } from "@/components/ui/hyper-text";
-import { Clock, Loader2, Trophy, Users } from "lucide-react";
+import { Clock, Loader2, Trophy, Users, X } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, deleteDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -421,6 +421,35 @@ const GamePage = () => {
     }
   };
 
+  const handleEndRoom = async () => {
+    if (!roomData || !currentUser) return;
+
+    // Check if user is host
+    const isHost = roomData.players.find(
+      (p) => p.uid === currentUser.uid,
+    )?.isHost;
+
+    if (!isHost) {
+      toast.error("Only the host can end the room");
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, "rooms", roomId));
+
+      // Clear room data from localStorage
+      localStorage.removeItem("currentRoomId");
+      localStorage.removeItem("currentGameStatus");
+      localStorage.removeItem("currentRoomData");
+
+      toast.success("Room ended");
+      router.push(`/client/${params.id}`);
+    } catch (error) {
+      console.error("Error ending room:", error);
+      toast.error("Failed to end room");
+    }
+  };
+
   const handleStartVoting = () => {
     setVotingStarted(true);
   };
@@ -658,6 +687,19 @@ const GamePage = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Host can end room if players don't join */}
+                {roomData.players.find((p) => p.uid === currentUser?.uid)
+                  ?.isHost && (
+                  <Button
+                    onClick={handleEndRoom}
+                    variant="outline"
+                    className="w-full h-12 rounded-full border-red-500 text-red-500 hover:bg-red-50 gap-2"
+                  >
+                    <X className="size-4" />
+                    End Room
+                  </Button>
+                )}
               </div>
             )}
           </div>

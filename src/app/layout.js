@@ -55,7 +55,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className={`${changaone.variable} ${poppins.variable} antialiased `}>
-        <Toaster position="top-center" richColors theme="dark" />
+        <Toaster position="bottom-center" richColors theme="dark" />
         {children}
       </body>
     </html>
