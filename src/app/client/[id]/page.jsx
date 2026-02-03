@@ -207,17 +207,28 @@ const Page = () => {
 
   return (
     <div className="relative bg-[#ffaa0009] min-h-screen w-full">
-      <nav className="flex w-full items-center justify-between mb-10">
-        <Button
-          onClick={() => setShowMenu(true)}
-          className={
-            "rounded-full border-black/20 w-11 h-11 fixed top-5 left-5 z-50"
-          }
-          variant="outline"
-        >
-          <ChartNoAxesGantt className="size-5" />
-        </Button>
-        <h1 className="changa text-3xl flex items-center mx-auto">
+      {/* Fixed Navigation Buttons */}
+      <Button
+        onClick={() => setShowMenu(true)}
+        className="rounded-full border-black/20 w-11 h-11 fixed top-5 left-5 z-50"
+        variant="outline"
+      >
+        <ChartNoAxesGantt className="size-5" />
+      </Button>
+
+      <Button
+        onClick={() => setShowProfile(true)}
+        className="rounded-full w-11 h-11 fixed top-5 right-5 z-50"
+      >
+        <User2 />
+        {unreadNotifications > 0 && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+        )}
+      </Button>
+
+      {/* Centered Logo */}
+      <div className="flex justify-center pt-5 mb-10">
+        <h1 className="changa text-3xl flex items-center">
           <HyperText animateOnHover={false} duration={1500}>
             Join
           </HyperText>
@@ -229,16 +240,8 @@ const Page = () => {
             Up
           </HyperText>
         </h1>
-        <Button
-          onClick={() => setShowProfile(true)}
-          className={"rounded-full w-11 h-11 relative fixed top-5 right-5 z-50"}
-        >
-          <User2 />
-          {unreadNotifications > 0 && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
-          )}
-        </Button>
-      </nav>
+      </div>
+
       {/* hero */}
       <div className="flex flex-col p-3 mt-10 gap-5">
         <div className="flex flex-col gap-2">

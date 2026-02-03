@@ -35,6 +35,7 @@ const GamePage = () => {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
+  const hasRedirectedRef = React.useRef(false);
 
   // Helper functions - declared before useEffects to avoid hoisting issues
   const generateTriviaQuestions = (category) => {
@@ -233,25 +234,34 @@ const GamePage = () => {
           localStorage.setItem("currentGameStatus", data.status);
 
           // Check if game finished
-          if (data.status === "finished") {
+          if (data.status === "finished" && !hasRedirectedRef.current) {
+            hasRedirectedRef.current = true;
             router.push(`/client/${params.id}/result?room=${roomId}`);
+            return;
           }
 
           // Check if game ended by host
-          if (data.status === "ended") {
+          if (data.status === "ended" && !hasRedirectedRef.current) {
+            hasRedirectedRef.current = true;
             toast.success("Game ended by host");
             localStorage.removeItem("currentRoomId");
             localStorage.removeItem("currentGameStatus");
             localStorage.removeItem("currentRoomData");
-            router.push(`/client/${params.id}`);
+            setTimeout(() => {
+              router.push(`/client/${params.id}`);
+            }, 500);
+            return;
           }
         } else {
-          // Only redirect if not loading (prevents redirect on initial mount)
-          if (!loading) {
+          // Room was deleted
+          if (!loading && !hasRedirectedRef.current) {
+            hasRedirectedRef.current = true;
             toast.info("Game has ended");
             localStorage.removeItem("currentRoomId");
             localStorage.removeItem("currentGameStatus");
-            router.push(`/client/${params.id}`);
+            setTimeout(() => {
+              router.push(`/client/${params.id}`);
+            }, 500);
           }
         }
         setLoading(false);
@@ -318,6 +328,10 @@ const GamePage = () => {
     )?.isHost;
 
     if (isHost) {
+      // Check if words are already assigned to prevent duplicate assignment
+      const alreadyAssigned = roomData.players.some((p) => p.assignedWord);
+      if (alreadyAssigned) return;
+
       // Host assigns words to all players
       const imposterIndex = Math.floor(Math.random() * roomData.players.length);
       const word = generateWord(roomData.category);
@@ -325,12 +339,15 @@ const GamePage = () => {
       const updatedPlayers = roomData.players.map((player, index) => ({
         ...player,
         assignedWord: index === imposterIndex ? "IMPOSTER" : word,
+        isGameReady: false, // Reset ready status
       }));
 
       try {
         await updateDoc(doc(db, "rooms", roomId), {
           players: updatedPlayers,
+          wordsAssigned: true,
         });
+        console.log("Words assigned to all players");
       } catch (error) {
         console.error("Error assigning words:", error);
       }
@@ -431,28 +448,29 @@ const GamePage = () => {
     }
 
     try {
-      // First, update room status to 'ended' to notify all players
+      // Update room status to 'ended' to notify all players
       await updateDoc(doc(db, "rooms", roomId), {
         status: "ended",
       });
-
-      // Wait a moment for all clients to receive the update
-      setTimeout(async () => {
-        try {
-          // Then delete the room
-          await deleteDoc(doc(db, "rooms", roomId));
-        } catch (error) {
-          console.error("Error deleting room:", error);
-        }
-      }, 1000);
 
       // Clear room data from localStorage
       localStorage.removeItem("currentRoomId");
       localStorage.removeItem("currentGameStatus");
       localStorage.removeItem("currentRoomData");
 
+      // Delete room after a delay to ensure all clients get the update
+      setTimeout(async () => {
+        try {
+          await deleteDoc(doc(db, "rooms", roomId));
+        } catch (error) {
+          console.error("Error deleting room:", error);
+        }
+      }, 2000);
+
       toast.success("Game ended");
-      router.push(`/client/${params.id}`);
+      setTimeout(() => {
+        router.push(`/client/${params.id}`);
+      }, 500);
     } catch (error) {
       console.error("Error ending room:", error);
       toast.error("Failed to end room");
