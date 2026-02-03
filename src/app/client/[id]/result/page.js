@@ -187,6 +187,12 @@ const ResultPage = () => {
 
     try {
       await deleteDoc(doc(db, "rooms", roomId));
+
+      // Clear room data from localStorage
+      localStorage.removeItem("currentRoomId");
+      localStorage.removeItem("currentGameStatus");
+      localStorage.removeItem("currentRoomData");
+
       toast.success("Room ended successfully");
       router.push(`/client/${params.id}`);
     } catch (error) {
@@ -372,7 +378,13 @@ const ResultPage = () => {
             </div>
           )}
           <Button
-            onClick={() => router.push(`/client/${params.id}`)}
+            onClick={() => {
+              // Clear room data from localStorage
+              localStorage.removeItem("currentRoomId");
+              localStorage.removeItem("currentGameStatus");
+              localStorage.removeItem("currentRoomData");
+              router.push(`/client/${params.id}`);
+            }}
             className="w-full bg-[#1a1a1a] text-white hover:bg-[#1a1a1a]/90 rounded-full h-14 text-lg font-semibold gap-2"
           >
             <Home className="size-5" />

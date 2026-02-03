@@ -55,14 +55,20 @@ const LobbyPage = () => {
           // Store room ID and data for friend invites
           localStorage.setItem("currentRoomId", roomId);
           localStorage.setItem("currentRoomData", JSON.stringify(data));
+          localStorage.setItem("currentGameStatus", data.status);
 
           // Check if game should start
           if (data.status === "playing") {
             router.push(`/client/${params.id}/game?room=${roomId}`);
           }
         } else {
-          toast.error("Room not found");
-          router.push(`/client/${params.id}`);
+          // Only redirect if not loading (prevents redirect on initial mount)
+          if (!loading) {
+            toast.error("Room not found");
+            localStorage.removeItem("currentRoomId");
+            localStorage.removeItem("currentGameStatus");
+            router.push(`/client/${params.id}`);
+          }
         }
         setLoading(false);
       });
@@ -122,6 +128,13 @@ const LobbyPage = () => {
       return;
     }
 
+    // For trivia, allow single player. For other games, require at least 2 players
+    const minPlayers = roomData.gameId === 1 ? 1 : 2;
+    if (roomData.players.length < minPlayers) {
+      toast.error(`Need at least ${minPlayers} player(s) to start`);
+      return;
+    }
+
     // Check if all non-host players are ready
     const allReady = roomData.players.every((p) => p.isHost || p.isReady);
     if (!allReady) {
@@ -160,7 +173,13 @@ const LobbyPage = () => {
       {/* Header */}
       <nav className="flex w-full items-center justify-between mb-10">
         <Button
-          onClick={() => router.push(`/client/${params.id}`)}
+          onClick={() => {
+            // Clear room data from localStorage
+            localStorage.removeItem("currentRoomId");
+            localStorage.removeItem("currentGameStatus");
+            localStorage.removeItem("currentRoomData");
+            router.push(`/client/${params.id}`);
+          }}
           className={"rounded-full border-black/20 w-11 h-11"}
           variant="outline"
         >

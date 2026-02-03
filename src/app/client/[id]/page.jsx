@@ -152,6 +152,21 @@ const Page = () => {
       : games.filter((game) => game.category === selectedCategory);
 
   useEffect(() => {
+    // Check if user has an active room and redirect them back
+    const currentRoomId = localStorage.getItem("currentRoomId");
+    const currentGameStatus = localStorage.getItem("currentGameStatus");
+
+    if (currentRoomId && currentGameStatus) {
+      // User has an active room, redirect them back
+      if (currentGameStatus === "playing") {
+        router.push(`/client/${params.id}/game?room=${currentRoomId}`);
+        return;
+      } else if (currentGameStatus === "waiting") {
+        router.push(`/client/${params.id}/lobby?room=${currentRoomId}`);
+        return;
+      }
+    }
+
     // Get user details from localStorage
     const userDetails = localStorage.getItem("userDetails");
     if (userDetails) {
@@ -188,7 +203,7 @@ const Page = () => {
         setUserName("Friend");
       }
     }
-  }, []);
+  }, [router, params.id]);
 
   return (
     <div className="p-5 relative bg-[#ffaa0009] min-h-screen w-full">
@@ -260,10 +275,10 @@ const Page = () => {
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}
-              className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+              className={`px-4 py-2 text-xs rounded-full whitespace-nowrap font-medium transition-all ${
                 selectedCategory === category.id
                   ? "bg-[#fa5c00] text-white"
-                  : "bg-[#1a1a1a] text-white/70 hover:text-white"
+                  : "bg-none border"
               }`}
             >
               {category.label}
@@ -272,7 +287,7 @@ const Page = () => {
         </div>
 
         {/* games array in cards , game image , below it , game name , and this div is scrool able along the y axis*/}
-        <div className="grid grid-cols-2 gap-4  pb-20">
+        <div className="grid grid-cols-2 gap-1 pb-20">
           {filteredGames.map((game) => {
             const Icon = game.icon;
             const isLocked = game.id > 2;

@@ -3,12 +3,27 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
 body{
   padding: 0;
   margin: 0;
   scroll-behavior: smooth;
   user-select: none;
   font-family: 'Poppins';
+  overflow-x: hidden; /* Prevent horizontal scroll during transitions */
+}
+
+/* Optimize animations for page transitions */
+* {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* Smooth transitions for all interactive elements */
+button, a {
+  transition: all 0.2s ease-in-out;
 }
 
 @theme inline {

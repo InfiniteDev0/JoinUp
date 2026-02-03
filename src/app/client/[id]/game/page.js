@@ -33,6 +33,8 @@ const GamePage = () => {
   const [votingStarted, setVotingStarted] = useState(false);
   const [wordsRevealed, setWordsRevealed] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [timerStarted, setTimerStarted] = useState(false);
 
   useEffect(() => {
     // Get current user
@@ -48,9 +50,21 @@ const GamePage = () => {
           const data = doc.data();
           setRoomData({ id: doc.id, ...data });
 
+          // Store room ID to persist on refresh
+          localStorage.setItem("currentRoomId", roomId);
+          localStorage.setItem("currentGameStatus", data.status);
+
           // Check if game finished
           if (data.status === "finished") {
             router.push(`/client/${params.id}/result?room=${roomId}`);
+          }
+        } else {
+          // Only redirect if not loading (prevents redirect on initial mount)
+          if (!loading) {
+            toast.error("Room not found");
+            localStorage.removeItem("currentRoomId");
+            localStorage.removeItem("currentGameStatus");
+            router.push(`/client/${params.id}`);
           }
         }
         setLoading(false);
@@ -63,9 +77,9 @@ const GamePage = () => {
   // Initialize game based on type
   useEffect(() => {
     if (roomData && currentUser) {
-      setTimeLeft(roomData.timer);
-
       if (roomData.gameId === 1) {
+        // Trivia game - timer starts immediately
+        setTimeLeft(roomData.timer);
         // Trivia game - generate questions
         const triviaQuestions = generateTriviaQuestions(roomData.category);
         setQuestions(triviaQuestions);
@@ -79,6 +93,14 @@ const GamePage = () => {
           // Word already assigned (rejoining)
           setAssignedWord(currentPlayerData.assignedWord);
           setIsImposter(currentPlayerData.assignedWord === "IMPOSTER");
+          setIsPlayerReady(currentPlayerData.isGameReady || false);
+
+          // Check if all players are ready to start timer
+          const allReady = roomData.players.every((p) => p.isGameReady);
+          if (allReady && !timerStarted) {
+            setTimeLeft(roomData.timer);
+            setTimerStarted(true);
+          }
         } else {
           // First time - assign words
           assignWordsToPlayers();
@@ -120,12 +142,16 @@ const GamePage = () => {
 
   // Timer countdown
   useEffect(() => {
-    if (timeLeft > 0) {
+    // For Imposter game, only count down if timer has started (all players ready)
+    const shouldCountDown =
+      roomData?.gameId === 1 || (roomData?.gameId === 2 && timerStarted);
+
+    if (timeLeft > 0 && shouldCountDown) {
       const timer = setTimeout(() => {
         setTimeLeft(timeLeft - 1);
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && roomData) {
+    } else if (timeLeft === 0 && roomData && shouldCountDown) {
       if (roomData.gameId === 1) {
         handleGameEnd();
       } else if (roomData.gameId === 2) {
@@ -133,7 +159,7 @@ const GamePage = () => {
         setWordsRevealed(true);
       }
     }
-  }, [timeLeft, roomData]);
+  }, [timeLeft, roomData, timerStarted]);
 
   const generateTriviaQuestions = (category) => {
     const questionBank = {
@@ -360,9 +386,39 @@ const GamePage = () => {
         setCurrentQuestion(currentQuestion + 1);
         setSelectedAnswer(null);
       } else {
-        handleGameEnd();
+        // Don't end game here, wait for timer
+        setSelectedAnswer(null);
       }
     }, 1000);
+  };
+
+  const handleReady = async () => {
+    if (!roomData || !currentUser || isPlayerReady) return;
+
+    try {
+      const updatedPlayers = roomData.players.map((player) => {
+        if (player.uid === currentUser.uid) {
+          return { ...player, isGameReady: true };
+        }
+        return player;
+      });
+
+      await updateDoc(doc(db, "rooms", roomId), {
+        players: updatedPlayers,
+      });
+
+      setIsPlayerReady(true);
+      toast.success("You are ready!");
+
+      // Check if all players are ready
+      const allReady = updatedPlayers.every((p) => p.isGameReady);
+      if (allReady) {
+        toast.success("All players ready! Timer starting...");
+      }
+    } catch (error) {
+      console.error("Error marking ready:", error);
+      toast.error("Failed to mark ready");
+    }
   };
 
   const handleStartVoting = () => {
@@ -382,21 +438,34 @@ const GamePage = () => {
     if (!roomData || !currentUser) return;
 
     try {
+      // Check if already finished (prevent duplicate submissions)
+      if (roomData.status === "finished") return;
+
       // Update player score
       const updatedPlayers = roomData.players.map((player) => {
         if (player.uid === currentUser.uid) {
           if (roomData.gameId === 1) {
-            return { ...player, score: score };
+            return { ...player, score: score, hasSubmitted: true };
           } else if (roomData.gameId === 2) {
-            return { ...player, vote: selectedPlayer, isImposter: isImposter };
+            return {
+              ...player,
+              vote: selectedPlayer,
+              isImposter: isImposter,
+              hasSubmitted: true,
+            };
           }
         }
         return player;
       });
 
+      // When timer reaches 0, end game immediately
+      // When called from handleAnswerSelect/handleVote, wait for all players
+      const isTimerEnd = timeLeft === 0;
+      const allSubmitted = updatedPlayers.every((p) => p.hasSubmitted);
+
       await updateDoc(doc(db, "rooms", roomId), {
         players: updatedPlayers,
-        status: "finished",
+        status: isTimerEnd || allSubmitted ? "finished" : "playing",
       });
     } catch (error) {
       console.error("Error ending game:", error);
@@ -545,13 +614,52 @@ const GamePage = () => {
               <p className="text-sm mb-4">
                 {isImposter
                   ? "You are the IMPOSTER! Try to blend in without revealing yourself."
-                  : "Ask questions to find the imposter. Don't reveal your word!"}
+                  : "Give one-word clues about your word. Try to find the imposter!"}
               </p>
-              <p className="text-xs text-white/70">
-                Discuss with other players. When time runs out, you'll see
-                everyone's words.
+              <p className="text-xs text-white/70 mb-4">
+                {timerStarted
+                  ? "Timer is running. Discuss with other players to find the imposter."
+                  : "Click ready when you've seen your word. Timer starts when all players are ready."}
               </p>
             </div>
+
+            {!timerStarted && (
+              <div className="w-full max-w-md space-y-4">
+                <Button
+                  onClick={handleReady}
+                  disabled={isPlayerReady}
+                  className={`w-full h-14 rounded-full text-lg font-semibold ${
+                    isPlayerReady
+                      ? "bg-green-500 hover:bg-green-500"
+                      : "bg-[#fa5c00] hover:bg-[#fa5c00]/90"
+                  }`}
+                >
+                  {isPlayerReady ? "✓ Ready" : "I'm Ready"}
+                </Button>
+
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">
+                    Waiting for players:{" "}
+                    {roomData.players.filter((p) => p.isGameReady).length} /{" "}
+                    {roomData.players.length}
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center mt-2">
+                    {roomData.players.map((player) => (
+                      <div
+                        key={player.uid}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          player.isGameReady
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {player.displayName} {player.isGameReady && "✓"}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : wordsRevealed && !votingStarted ? (
           <div className="space-y-6">
