@@ -98,7 +98,7 @@ const Auth = () => {
       };
       localStorage.setItem("userDetails", JSON.stringify(userDetails));
 
-      toast.success(`Welcome, ${user.displayName}!`);
+      toast.success(`Welcome, ${user.displayName}!`, { duration: 3000 });
 
       setTimeout(() => {
         const displayName = user.displayName || "";
@@ -109,7 +109,7 @@ const Auth = () => {
         router.push(`/client/${initials || "USER"}`);
       }, 1000);
     } catch (err) {
-      toast.error(getFriendlyError(err));
+      toast.error(getFriendlyError(err), { duration: 4000 });
     } finally {
       setLoading(false);
     }
@@ -177,7 +177,12 @@ const Auth = () => {
             {loading ? "Signing in..." : "Sign in with Google"}
           </Button>
         </div>
-        <Toaster position="top-center" theme="dark" richColors />
+        <Toaster
+          position="top-center"
+          theme="dark"
+          richColors
+          duration={3000}
+        />
       </div>
     </div>
   );

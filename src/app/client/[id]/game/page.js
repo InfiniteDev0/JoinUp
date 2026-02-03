@@ -294,7 +294,7 @@ const GamePage = () => {
         );
 
         if (currentPlayerData?.assignedWord) {
-          // Word already assigned (rejoining)
+          // Word already assigned - sync state
           setAssignedWord(currentPlayerData.assignedWord);
           setIsImposter(currentPlayerData.assignedWord === "IMPOSTER");
           setIsPlayerReady(currentPlayerData.isGameReady || false);
@@ -302,7 +302,7 @@ const GamePage = () => {
 
           // Check if all players are ready to start timer
           const allReady = roomData.players.every((p) => p.isGameReady);
-          if (allReady) {
+          if (allReady && roomData.allPlayersReady) {
             if (!timerStarted) {
               setTimeLeft(roomData.timer);
               setTimerStarted(true);
@@ -311,13 +311,19 @@ const GamePage = () => {
             // Not all ready yet, reset timer state
             setTimerStarted(false);
           }
-        } else {
-          // First time - assign words
+        } else if (!roomData.wordsAssigned) {
+          // First time - assign words (only if not already assigned by host)
           assignWordsToPlayers();
         }
       }
     }
-  }, [roomData, currentUser]);
+  }, [
+    roomData?.players,
+    roomData?.allPlayersReady,
+    roomData?.wordsAssigned,
+    currentUser?.uid,
+    roomData?.gameId,
+  ]);
 
   const assignWordsToPlayers = async () => {
     if (!roomData || !currentUser) return;
@@ -330,11 +336,21 @@ const GamePage = () => {
     if (isHost) {
       // Check if words are already assigned to prevent duplicate assignment
       const alreadyAssigned = roomData.players.some((p) => p.assignedWord);
-      if (alreadyAssigned) return;
+      if (alreadyAssigned || roomData.wordsAssigned) return;
 
       // Host assigns words to all players
       const imposterIndex = Math.floor(Math.random() * roomData.players.length);
       const word = generateWord(roomData.category);
+
+      // Make sure word is generated
+      if (!word) {
+        console.error(
+          "Failed to generate word for category:",
+          roomData.category,
+        );
+        toast.error("Failed to generate word. Please try again.");
+        return;
+      }
 
       const updatedPlayers = roomData.players.map((player, index) => ({
         ...player,
@@ -346,8 +362,9 @@ const GamePage = () => {
         await updateDoc(doc(db, "rooms", roomId), {
           players: updatedPlayers,
           wordsAssigned: true,
+          allPlayersReady: false,
         });
-        console.log("Words assigned to all players");
+        console.log("Words assigned to all players. Word:", word);
       } catch (error) {
         console.error("Error assigning words:", error);
       }
