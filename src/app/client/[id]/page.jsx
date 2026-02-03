@@ -206,7 +206,7 @@ const Page = () => {
   }, [router, params.id]);
 
   return (
-    <div className="p-5 relative bg-[#ffaa0009] min-h-screen w-full">
+    <div className="relative bg-[#ffaa0009] min-h-screen w-full">
       <nav className="flex w-full items-center justify-between mb-10">
         <Button
           onClick={() => setShowMenu(true)}
@@ -240,9 +240,9 @@ const Page = () => {
         </Button>
       </nav>
       {/* hero */}
-      <div className="flex flex-col mt-10 gap-5">
+      <div className="flex flex-col p-3 mt-10 gap-5">
         <div className="flex flex-col gap-2">
-          <h2 className="text-xl font-bold">Hey, {userName}👋</h2>
+          <h2 className="text-2xl font-bold">Hey, {userName}👋</h2>
           <p className="text-sm text-muted-foreground">
             JoinUp with your friends.
           </p>
