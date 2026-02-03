@@ -222,7 +222,7 @@ const LobbyPage = () => {
               {copied ? (
                 <Check className="size-5 text-green-500" />
               ) : (
-                <Copy className="size-5" />
+                <Copy className="size-5 text-white" />
               )}
             </Button>
           </div>

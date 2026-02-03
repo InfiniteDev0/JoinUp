@@ -15,7 +15,7 @@ export default function Home() {
     const timer = setTimeout(() => {
       // Start exit animation
       setIsExiting(true);
-      
+
       // Wait for exit animation to complete before redirecting
       setTimeout(() => {
         // Check localStorage for user details
@@ -43,7 +43,7 @@ export default function Home() {
             router.push("/auth");
           }
         }
-      }, 800); // Wait for blur/fade animation to complete
+      }, 500); // Wait for slide animation to complete
     }, 5000);
 
     return () => clearTimeout(timer);
@@ -51,13 +51,9 @@ export default function Home() {
 
   return (
     <motion.div
-      initial={{ opacity: 1, filter: "blur(0px)" }}
-      animate={
-        isExiting
-          ? { opacity: 0, filter: "blur(10px)", scale: 0.95 }
-          : { opacity: 1, filter: "blur(0px)", scale: 1 }
-      }
-      transition={{ duration: 0.8, ease: "easeInOut" }}
+      initial={{ x: 0, opacity: 1 }}
+      animate={isExiting ? { x: "-100%", opacity: 0 } : { x: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: "easeInOut" }}
       className="bg-[#fa5c00] h-screen w-screen flex flex-col items-center justify-center"
     >
       <h1 className="changa text-6xl flex items-center">
